@@ -1,0 +1,28 @@
+spring:
+  application:
+    name: sinteticas-api
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/sinteticas_db}
+    username: ${SPRING_DATASOURCE_USERNAME:sinteticas}
+    password: ${SPRING_DATASOURCE_PASSWORD:sinteticas_password}
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  flyway:
+    enabled: true
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
