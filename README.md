@@ -49,7 +49,13 @@ git checkout develop
 cp .env.example .env
 ```
 
-Abre `.env` y pon una contraseña (puede ser la misma que usen los tres para desarrollo local, no es la de producción).
+Abre `.env` y completa los valores (pueden ser los mismos para los tres en desarrollo local, no son los de producción):
+
+- `POSTGRES_PASSWORD`: contraseña de la base de datos.
+- `JWT_SECRET`: clave para firmar los tokens de sesión, **mínimo 32 caracteres** (`openssl rand -base64 48`). Sin ella el backend no arranca.
+- `SUPER_ADMIN_EMAIL` / `SUPER_ADMIN_PASSWORD`: el primer super administrador, que se crea solo al arrancar. Es quien asigna el rol `ADMIN` a los dueños de cancha.
+
+> ⚠️ **Si ya tenías el proyecto clonado:** antes `.env` estaba subido a Git y ahora no. Al hacer `git pull` de `develop`, Git **borra tu `.env` local**. Haz una copia antes (`cp .env .env.backup`), haz el pull y luego restáurala (`mv .env.backup .env`) agregando las variables nuevas de `.env.example`.
 
 ### Levantar todo
 

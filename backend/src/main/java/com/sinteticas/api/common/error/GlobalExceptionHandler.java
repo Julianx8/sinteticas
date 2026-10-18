@@ -3,6 +3,7 @@ package com.sinteticas.api.common.error;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.mapping.PropertyReferenceException;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -43,6 +44,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT,
                 "La operación entra en conflicto con datos existentes");
         problem.setProperty("code", "DATA_CONFLICT");
+        return problem;
+    }
+
+    /** Ordenamiento por un campo que no existe, p. ej. {@code ?sort=foo}. */
+    @ExceptionHandler(PropertyReferenceException.class)
+    public ProblemDetail handleInvalidSort(PropertyReferenceException ex) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST,
+                "No se puede ordenar por el campo '" + ex.getPropertyName() + "'");
+        problem.setProperty("code", "INVALID_SORT");
         return problem;
     }
 
