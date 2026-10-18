@@ -9,6 +9,7 @@ import com.sinteticas.api.venue.dto.VenueResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
@@ -47,7 +48,7 @@ public class VenueController {
     public PageResponse<VenueResponse> search(@RequestParam(required = false) String q,
                                               @RequestParam(required = false) String neighborhood,
                                               @RequestParam(required = false) CourtType courtType,
-                                              @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+                                              @ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         Pageable safePageable = Pageables.restrict(pageable, SORTABLE_FIELDS);
         return PageResponse.of(venueService.searchActive(q, neighborhood, courtType, safePageable),
                 VenueResponse::from);
@@ -57,7 +58,7 @@ public class VenueController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @Operation(summary = "Sedes que administro (incluye inactivas)")
     public PageResponse<VenueResponse> mine(AuthenticatedUser currentUser,
-                                            @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+                                            @ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         Pageable safePageable = Pageables.restrict(pageable, SORTABLE_FIELDS);
         return PageResponse.of(venueService.listOwnedBy(currentUser.id(), safePageable), VenueResponse::from);
     }

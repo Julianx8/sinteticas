@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -69,7 +70,7 @@ public class ReservationController {
     public PageResponse<ReservationResponse> mine(AuthenticatedUser currentUser,
                                                   @RequestParam(required = false) ReservationStatus status,
                                                   @RequestParam(defaultValue = "false") boolean upcoming,
-                                                  @PageableDefault(size = 20, sort = "startAt",
+                                                  @ParameterObject @PageableDefault(size = 20, sort = "startAt",
                                                           direction = Sort.Direction.DESC) Pageable pageable) {
         Pageable safePageable = Pageables.restrict(pageable, SORTABLE_FIELDS);
         return toPage(reservationService.listMine(currentUser, status, upcoming, safePageable));
@@ -110,7 +111,7 @@ public class ReservationController {
                                                       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
                                                       @RequestParam(required = false) ReservationStatus status,
                                                       @RequestParam(required = false) UUID courtId,
-                                                      @PageableDefault(size = 50, sort = "startAt") Pageable pageable) {
+                                                      @ParameterObject @PageableDefault(size = 50, sort = "startAt") Pageable pageable) {
         Pageable safePageable = Pageables.restrict(pageable, SORTABLE_FIELDS);
         return toPage(reservationService.listForVenue(currentUser, venueId, from, to, status, courtId, safePageable));
     }
