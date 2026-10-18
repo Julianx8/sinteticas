@@ -31,6 +31,11 @@ spring:
     problemdetails:
       enabled: true
 
+  data:
+    web:
+      pageable:
+        max-page-size: 100
+
 server:
   port: 8080
   error:
@@ -53,3 +58,15 @@ app:
   zone-id: America/Bogota
   cors:
     allowed-origins: ${APP_CORS_ALLOWED_ORIGINS:http://localhost:5173}
+  security:
+    jwt:
+      # Clave HMAC para firmar los tokens: mínimo 32 caracteres, sin valor por defecto
+      secret: ${JWT_SECRET}
+      expiration: ${JWT_EXPIRATION:8h}
+      issuer: sinteticas-api
+  bootstrap:
+    # Si se definen, al arrancar se crea (o promueve) este usuario como SUPER_ADMIN
+    super-admin:
+      email: ${SUPER_ADMIN_EMAIL:}
+      password: ${SUPER_ADMIN_PASSWORD:}
+      full-name: ${SUPER_ADMIN_NAME:Super Administrador}

@@ -1,0 +1,9 @@
+app:
+  security:
+    jwt:
+      secret: test-secret-solo-para-tests-0123456789abcdef
+  bootstrap:
+    super-admin:
+      email: superadmin@test.com
+      password: SuperAdmin123
+      full-name: Super Admin Tests
