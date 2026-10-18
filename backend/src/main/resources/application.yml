@@ -64,6 +64,15 @@ app:
       secret: ${JWT_SECRET}
       expiration: ${JWT_EXPIRATION:8h}
       issuer: sinteticas-api
+  reservations:
+    # Duración máxima de una reserva, en horas enteras
+    max-hours: 3
+    # Con cuántos días de anticipación se puede reservar
+    max-days-ahead: 30
+    # Hasta cuánto antes del inicio puede cancelar el cliente (el dueño puede cancelar siempre antes del inicio)
+    customer-cancellation-notice: 2h
+    # Reservas futuras activas que puede tener un cliente a la vez (evita acaparar horarios)
+    max-active-per-customer: 5
   bootstrap:
     # Si se definen, al arrancar se crea (o promueve) este usuario como SUPER_ADMIN
     super-admin:
