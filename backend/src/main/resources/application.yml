@@ -64,6 +64,11 @@ app:
       secret: ${JWT_SECRET}
       expiration: ${JWT_EXPIRATION:8h}
       issuer: sinteticas-api
+    login-throttle:
+      # Intentos fallidos permitidos dentro de la ventana antes de responder 429
+      max-failures-per-email: 5
+      max-failures-per-ip: 20
+      window: 15m
   reservations:
     # Duración máxima de una reserva, en horas enteras
     max-hours: 3

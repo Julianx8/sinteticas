@@ -21,13 +21,16 @@ public class AuthService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final LoginAttemptService loginAttempts;
 
     public AuthService(UserService userService, UserRepository userRepository,
-                       PasswordEncoder passwordEncoder, JwtService jwtService) {
+                       PasswordEncoder passwordEncoder, JwtService jwtService,
+                       LoginAttemptService loginAttempts) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
+        this.loginAttempts = loginAttempts;
     }
 
     /** El registro público siempre crea clientes; los roles ADMIN los asigna un SUPER_ADMIN. */
@@ -38,12 +41,18 @@ public class AuthService {
     }
 
     @Transactional(readOnly = true)
-    public AuthResponse login(LoginRequest request) {
+    public AuthResponse login(LoginRequest request, String clientIp) {
+        loginAttempts.checkAllowed(request.email(), clientIp);
+
         // Mismo mensaje para "no existe" y "contraseña incorrecta": no revelamos qué emails están registrados
         User user = userRepository.findByEmail(request.email().trim())
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPasswordHash()))
-                .orElseThrow(() -> new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS",
-                        "Email o contraseña incorrectos"));
+                .orElse(null);
+        if (user == null) {
+            loginAttempts.recordFailure(request.email(), clientIp);
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "INVALID_CREDENTIALS", "Email o contraseña incorrectos");
+        }
+        loginAttempts.recordSuccess(request.email());
 
         if (!user.isEnabled()) {
             throw ApiException.forbidden("ACCOUNT_DISABLED", "La cuenta está desactivada");
