@@ -30,7 +30,7 @@ public class BusinessTime {
     }
 
     public LocalDate today() {
-        return LocalDate.now(clock.withZone(zone));
+        return clock.instant().atZone(zone).toLocalDate();
     }
 
     public ZoneId zone() {

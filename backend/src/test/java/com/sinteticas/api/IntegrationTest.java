@@ -2,6 +2,7 @@ package com.sinteticas.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -39,6 +40,14 @@ public abstract class IntegrationTest {
 
     @Autowired
     protected ObjectMapper objectMapper;
+
+    @Autowired
+    protected MutableClock clock;
+
+    @AfterEach
+    void resetClock() {
+        clock.reset();
+    }
 
     protected String json(Object body) throws Exception {
         return objectMapper.writeValueAsString(body);
