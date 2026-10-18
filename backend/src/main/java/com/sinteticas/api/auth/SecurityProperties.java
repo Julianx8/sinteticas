@@ -1,6 +1,7 @@
 package com.sinteticas.api.auth;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
@@ -16,7 +17,15 @@ public record SecurityProperties(
         @Valid @NotNull Bootstrap bootstrap
 ) {
 
-    public record Security(@Valid @NotNull Jwt jwt) {
+    public record Security(@Valid @NotNull Jwt jwt, @Valid @NotNull LoginThrottle loginThrottle) {
+    }
+
+    /** Límite de intentos fallidos de login dentro de {@code window}. */
+    public record LoginThrottle(
+            @Min(1) int maxFailuresPerEmail,
+            @Min(1) int maxFailuresPerIp,
+            @NotNull Duration window
+    ) {
     }
 
     public record Jwt(
