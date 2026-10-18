@@ -51,14 +51,6 @@ cp .env.example .env
 
 Abre `.env` y pon una contraseña (puede ser la misma que usen los tres para desarrollo local, no es la de producción).
 
-### Generar el Maven Wrapper del backend (solo una vez, cada uno en su máquina)
-
-```bash
-docker run --rm -v "${PWD}/backend:/app" -w /app maven:3.9-eclipse-temurin-21 mvn -N wrapper:wrapper
-```
-
-En Windows PowerShell la sintaxis es la misma.
-
 ### Levantar todo
 
 ```bash
@@ -67,10 +59,21 @@ docker compose up --build
 
 Verifica que respondan:
 - Backend → http://localhost:8080/api/v1/health
+- Documentación de la API (Swagger) → http://localhost:8080/swagger-ui.html
 - Frontend → http://localhost:5173
 - PostgreSQL → puerto 5432 (no se abre en navegador, es normal)
 
 Si algo falla en este paso, avisa en el grupo antes de seguir — mejor resolverlo entre los tres que cada uno con una versión distinta funcionando.
+
+### Correr los tests del backend
+
+Los tests de integración levantan un PostgreSQL real con Testcontainers, así que solo necesitan Docker:
+
+```bash
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "${PWD}/backend:/app" -v sinteticas-m2:/root/.m2 -w /app -e TESTCONTAINERS_HOST_OVERRIDE=host.docker.internal maven:3.9-eclipse-temurin-21 mvn -B verify
+```
+
+(En Git Bash para Windows, antepón `MSYS_NO_PATHCONV=1` al comando.)
 
 ---
 

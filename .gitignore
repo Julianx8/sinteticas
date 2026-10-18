@@ -1,0 +1,23 @@
+# Variables de entorno reales (NUNCA se suben)
+.env
+.env.*
+!.env.example
+
+# Backend (Maven / Java)
+backend/target/
+*.class
+*.log
+hs_err_pid*
+
+# Frontend (Node / Vite)
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# Editores y sistema operativo
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+.DS_Store
+Thumbs.db
