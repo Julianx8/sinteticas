@@ -131,6 +131,7 @@ com.sinteticas.api
 ├── venue/         # sedes
 ├── court/         # canchas
 ├── schedule/      # horarios semanales con precios y bloqueos
+├── holiday/       # festivos de Colombia (se cobran como domingo)
 ├── notification/  # envío de correos (reservas y restablecer contraseña)
 ├── reservation/   # reservas y disponibilidad
 └── report/        # reportes de sede (ocupación, ingresos, demanda) y de plataforma

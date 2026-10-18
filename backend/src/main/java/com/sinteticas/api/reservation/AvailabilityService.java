@@ -5,6 +5,7 @@ import com.sinteticas.api.common.config.BusinessTime;
 import com.sinteticas.api.common.error.ApiException;
 import com.sinteticas.api.court.Court;
 import com.sinteticas.api.court.CourtService;
+import com.sinteticas.api.holiday.HolidayCalendar;
 import com.sinteticas.api.reservation.dto.AvailabilityResponse;
 import com.sinteticas.api.reservation.dto.AvailabilityResponse.Slot;
 import com.sinteticas.api.reservation.dto.AvailabilityResponse.SlotStatus;
@@ -36,16 +37,18 @@ public class AvailabilityService {
     private final ReservationRepository reservationRepository;
     private final BusinessTime time;
     private final ReservationProperties properties;
+    private final HolidayCalendar holidayCalendar;
 
     public AvailabilityService(CourtService courtService, ScheduleService scheduleService, BlockService blockService,
                                ReservationRepository reservationRepository, BusinessTime time,
-                               ReservationProperties properties) {
+                               ReservationProperties properties, HolidayCalendar holidayCalendar) {
         this.courtService = courtService;
         this.scheduleService = scheduleService;
         this.blockService = blockService;
         this.reservationRepository = reservationRepository;
         this.time = time;
         this.properties = properties;
+        this.holidayCalendar = holidayCalendar;
     }
 
     @Transactional(readOnly = true)
@@ -70,7 +73,7 @@ public class AvailabilityService {
             slots.add(new Slot(hour, time.toOffset(slotStart), time.toOffset(slotEnd), entry.getValue(),
                     statusOf(slotStart, slotEnd, now, reservations, blocks)));
         }
-        return new AvailabilityResponse(court.getId(), date, slots);
+        return new AvailabilityResponse(court.getId(), date, holidayCalendar.holidayName(date).orElse(null), slots);
     }
 
     private static SlotStatus statusOf(Instant start, Instant end, Instant now,

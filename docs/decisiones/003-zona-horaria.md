@@ -22,4 +22,5 @@ estar en otra zona horaria. Un error aquí corre las reservas horas enteras.
 
 - ✅ El resultado es el mismo sin importar dónde corra el servidor.
 - ✅ Colombia no tiene horario de verano, así que un día siempre tiene 24 horas.
-- ⚠️ Los festivos no se detectan automáticamente: la sede debe crear un bloqueo o ajustar el horario.
+- ✅ Los festivos de Colombia se calculan solos (`ColombianHolidays`) y usan el horario y los precios del domingo.
+  Para cerrar un festivo concreto, la sede crea un bloqueo.

@@ -77,6 +77,9 @@ app:
     expiration: 1h
     # Solicitudes por email por hora; las demás se ignoran en silencio
     max-requests-per-hour: 3
+  holidays:
+    # true = los festivos de Colombia usan el horario y los precios del domingo
+    sunday-schedule: true
   # Zona horaria del negocio: los horarios de las canchas se interpretan en hora de Colombia
   zone-id: America/Bogota
   cors:

@@ -8,10 +8,13 @@ import java.util.UUID;
 
 /**
  * Disponibilidad de una cancha en un día: una entrada por cada hora en que la cancha abre.
+ *
+ * @param holidayName nombre del festivo si la fecha lo es (ese día rigen el horario y los precios del domingo)
  */
 public record AvailabilityResponse(
         UUID courtId,
         LocalDate date,
+        String holidayName,
         List<Slot> slots
 ) {
 
