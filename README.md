@@ -130,7 +130,8 @@ com.sinteticas.api
 ├── venue/         # sedes
 ├── court/         # canchas
 ├── schedule/      # horarios semanales con precios y bloqueos
-└── reservation/   # reservas y disponibilidad
+├── reservation/   # reservas y disponibilidad
+└── report/        # reportes de sede (ocupación, ingresos, demanda) y de plataforma
 ```
 
 Documentación:

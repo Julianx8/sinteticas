@@ -61,9 +61,9 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public Page<User> search(String query, Pageable pageable) {
+    public Page<User> search(String query, RoleName role, Pageable pageable) {
         String q = (query == null || query.isBlank()) ? null : query.trim();
-        return userRepository.search(q, pageable);
+        return userRepository.search(q, role, pageable);
     }
 
     @Transactional

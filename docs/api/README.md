@@ -43,8 +43,9 @@ El registro público siempre crea `CUSTOMER`. Para que un dueño de cancha sea `
 
 | Método | Ruta | | Descripción |
 | --- | --- | --- | --- |
-| GET | `/admin/users?q=` | 👑 | Buscar usuarios (paginado) |
+| GET | `/admin/users?q=&role=` | 👑 | Buscar usuarios por nombre/email y rol (paginado) |
 | GET | `/admin/users/{id}` | 👑 | Ver usuario |
+| GET | `/admin/users/{id}/venues` | 👑 | Sedes de las que es dueño |
 | PUT | `/admin/users/{id}/roles` | 👑 | Reemplazar roles `{"roles": ["CUSTOMER", "ADMIN"]}` |
 | PUT | `/admin/users/{id}/status` | 👑 | Activar/desactivar `{"enabled": false}` |
 
@@ -117,6 +118,34 @@ Estados de una reserva: `CONFIRMED` → `CANCELLED` | `COMPLETED` | `NO_SHOW`.
 - Un cliente puede tener máximo **5 reservas futuras activas**.
 - El cliente cancela hasta **2 horas** antes; la sede puede cancelar en cualquier momento antes del inicio.
 - El precio se calcula sumando el precio de cada hora y **queda fijo** aunque la sede cambie el horario después.
+
+### Reportes
+
+Fechas `from`/`to` inclusive, en hora de Colombia, máximo **366 días**.
+
+| Método | Ruta | | Descripción |
+| --- | --- | --- | --- |
+| GET | `/venues/{id}/reports/summary?from=&to=` | 🏟️ | Totales de la sede y desglose por cancha |
+| GET | `/venues/{id}/reports/daily?from=&to=` | 🏟️ | Un punto por día (también los días sin reservas), listo para graficar |
+| GET | `/venues/{id}/reports/demand?from=&to=` | 🏟️ | Horas reservadas por día de la semana × hora, y las 5 horas pico |
+| GET | `/admin/reports/summary?from=&to=` | 👑 | Usuarios, sedes y canchas activas, reservas por mes y las 5 sedes con más reservas |
+
+Todos los reportes usan el mismo bloque de métricas:
+
+| Métrica | Cómo se calcula |
+| --- | --- |
+| `reservations`, `confirmed`, `completed`, `cancelled`, `noShow` | Reservas que **empiezan** en el rango, por estado |
+| `bookedHours` | Horas de las reservas no canceladas (CONFIRMED + COMPLETED + NO_SHOW) |
+| `availableHours` | Horas del horario de las canchas activas menos las bloqueadas |
+| `occupancyRate` | `bookedHours ÷ availableHours` |
+| `realizedRevenue` | Suma de las COMPLETED (lo que efectivamente se jugó) |
+| `projectedRevenue` | Suma de las CONFIRMED (por jugar) |
+| `cancellationRate` | `cancelled ÷ reservations` |
+| `noShowRate` | `noShow ÷ (completed + noShow)`, es decir, sobre las que ya tienen resultado |
+
+Las tasas van de 0 a 1 con 4 decimales (`0.1538` = 15,38 %). Las NO_SHOW no suman ingresos porque el pago es en la sede.
+En el resumen de plataforma `availableHours` y `occupancyRate` se omiten: la ocupación es una métrica por sede.
+La disponibilidad usa el horario **actual**: una cancha desactivada hoy cuenta 0 horas también en fechas pasadas.
 
 ## Paginación
 
