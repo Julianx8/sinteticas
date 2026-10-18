@@ -17,7 +17,12 @@ public record SecurityProperties(
         @Valid @NotNull Bootstrap bootstrap
 ) {
 
-    public record Security(@Valid @NotNull Jwt jwt, @Valid @NotNull LoginThrottle loginThrottle) {
+    public record Security(@Valid @NotNull Jwt jwt, @Valid @NotNull Refresh refresh,
+                           @Valid @NotNull LoginThrottle loginThrottle) {
+    }
+
+    /** Vigencia de los refresh tokens (la sesión dura esto sin volver a pedir contraseña). */
+    public record Refresh(@NotNull Duration expiration) {
     }
 
     /** Límite de intentos fallidos de login dentro de {@code window}. */
