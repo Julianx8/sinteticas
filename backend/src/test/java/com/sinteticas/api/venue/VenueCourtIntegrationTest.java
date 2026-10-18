@@ -4,7 +4,6 @@ import com.sinteticas.api.IntegrationTest;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.MediaType;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -146,33 +145,6 @@ class VenueCourtIntegrationTest extends IntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of("name", "Cancha", "courtType", "BALONCESTO"))))
                 .andExpect(status().isBadRequest());
-    }
-
-    private static Map<String, Object> venueBody(String name) {
-        Map<String, Object> body = new HashMap<>();
-        body.put("name", name);
-        body.put("address", "Calle 10 # 5-20");
-        body.put("neighborhood", "Centro");
-        body.put("phone", "+57 300 123 4567");
-        return body;
-    }
-
-    private String createVenue(String token, String name) throws Exception {
-        String body = mockMvc.perform(withToken(post("/api/v1/venues"), token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(venueBody(name))))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return readJson(body).get("id").asText();
-    }
-
-    private String createCourt(String token, String venueId, String name, String type) throws Exception {
-        String body = mockMvc.perform(withToken(post("/api/v1/venues/{id}/courts", venueId), token)
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(json(Map.of("name", name, "courtType", type))))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return readJson(body).get("id").asText();
     }
 
 }
