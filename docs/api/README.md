@@ -122,7 +122,18 @@ POST /reservations
 { "courtId": "…", "startAt": "2026-10-20T18:00:00-05:00", "durationHours": 2, "notes": "Partido de la oficina" }
 ```
 
-Estados de la disponibilidad: `AVAILABLE`, `BOOKED`, `BLOCKED`, `PAST`.
+Estados de la disponibilidad: `AVAILABLE`, `BOOKED`, `BLOCKED`, `PAST`. Si la fecha es festivo, la respuesta trae
+`holidayName` (por ejemplo `"Día de Todos los Santos"`).
+
+### Festivos
+
+| Método | Ruta | | Descripción |
+| --- | --- | --- | --- |
+| GET | `/holidays?year=2026` | 🌐 | Festivos de Colombia del año: `[{"date": "2026-01-01", "name": "Año Nuevo"}, …]` |
+
+Los festivos se calculan solos (Ley Emiliani: fijos, trasladables al lunes y los que dependen de la Pascua).
+**En un festivo la cancha usa el horario y los precios del domingo** (`app.holidays.sunday-schedule: true`).
+Para cerrar un festivo concreto, la sede crea un bloqueo.
 
 Estados de una reserva: `CONFIRMED` → `CANCELLED` | `COMPLETED` | `NO_SHOW`.
 
@@ -208,7 +219,7 @@ Los errores de validación incluyen además `errors` con el mensaje de cada camp
 
 | HTTP | Códigos |
 | --- | --- |
-| 400 | `INVALID_RESET_TOKEN`, `VALIDATION_ERROR`, `INVALID_SORT`, `INVALID_RANGE`, `RANGE_TOO_LARGE`, `INVALID_START_TIME`, `INVALID_SCHEDULE_RANGE`, `INVALID_CURRENT_PASSWORD` |
+| 400 | `INVALID_YEAR`, `INVALID_RESET_TOKEN`, `VALIDATION_ERROR`, `INVALID_SORT`, `INVALID_RANGE`, `RANGE_TOO_LARGE`, `INVALID_START_TIME`, `INVALID_SCHEDULE_RANGE`, `INVALID_CURRENT_PASSWORD` |
 | 401 | `UNAUTHORIZED` (sin token o token inválido/vencido), `INVALID_CREDENTIALS`, `INVALID_REFRESH_TOKEN`, `REFRESH_TOKEN_REUSED` |
 | 403 | `FORBIDDEN`, `ACCOUNT_DISABLED`, `VENUE_NOT_OWNED`, `COURT_NOT_OWNED` |
 | 404 | `USER_NOT_FOUND`, `VENUE_NOT_FOUND`, `COURT_NOT_FOUND`, `BLOCK_NOT_FOUND`, `RESERVATION_NOT_FOUND` |

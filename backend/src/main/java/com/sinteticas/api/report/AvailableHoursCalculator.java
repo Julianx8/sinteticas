@@ -2,6 +2,7 @@ package com.sinteticas.api.report;
 
 import com.sinteticas.api.common.config.BusinessTime;
 import com.sinteticas.api.court.Court;
+import com.sinteticas.api.holiday.HolidayCalendar;
 import com.sinteticas.api.schedule.CourtSchedule;
 import com.sinteticas.api.schedule.CourtScheduleRepository;
 import com.sinteticas.api.schedule.ScheduleBlock;
@@ -27,12 +28,15 @@ public class AvailableHoursCalculator {
     private final CourtScheduleRepository scheduleRepository;
     private final ScheduleBlockRepository blockRepository;
     private final BusinessTime time;
+    private final HolidayCalendar holidayCalendar;
 
     public AvailableHoursCalculator(CourtScheduleRepository scheduleRepository,
-                                    ScheduleBlockRepository blockRepository, BusinessTime time) {
+                                    ScheduleBlockRepository blockRepository, BusinessTime time,
+                                    HolidayCalendar holidayCalendar) {
         this.scheduleRepository = scheduleRepository;
         this.blockRepository = blockRepository;
         this.time = time;
+        this.holidayCalendar = holidayCalendar;
     }
 
     /** Horas disponibles por día del rango (todos los días aparecen, con 0 si no abre). */
@@ -48,7 +52,7 @@ public class AvailableHoursCalculator {
         List<ScheduleBlock> blocks = blockRepository.findOverlapping(court.getId(), range.start(), range.end());
 
         for (LocalDate date : range.dates()) {
-            int dayOfWeek = date.getDayOfWeek().getValue();
+            int dayOfWeek = holidayCalendar.scheduleDayOfWeek(date);
             long hours = 0;
             for (CourtSchedule schedule : schedules) {
                 if (schedule.getDayOfWeek() != dayOfWeek) {

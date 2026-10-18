@@ -57,7 +57,8 @@ public class SecurityConfig implements WebMvcConfigurer {
             "/api/v1/venues/{venueId}/courts",
             "/api/v1/courts/{courtId}",
             "/api/v1/courts/{courtId}/schedules",
-            "/api/v1/courts/{courtId}/availability"
+            "/api/v1/courts/{courtId}/availability",
+            "/api/v1/holidays"
     };
 
     @Bean

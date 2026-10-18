@@ -4,6 +4,7 @@ import com.sinteticas.api.auth.AuthenticatedUser;
 import com.sinteticas.api.common.error.ApiException;
 import com.sinteticas.api.court.Court;
 import com.sinteticas.api.court.CourtService;
+import com.sinteticas.api.holiday.HolidayCalendar;
 import com.sinteticas.api.schedule.dto.ScheduleSlotRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,10 +24,13 @@ public class ScheduleService {
 
     private final CourtScheduleRepository scheduleRepository;
     private final CourtService courtService;
+    private final HolidayCalendar holidayCalendar;
 
-    public ScheduleService(CourtScheduleRepository scheduleRepository, CourtService courtService) {
+    public ScheduleService(CourtScheduleRepository scheduleRepository, CourtService courtService,
+                           HolidayCalendar holidayCalendar) {
         this.scheduleRepository = scheduleRepository;
         this.courtService = courtService;
+        this.holidayCalendar = holidayCalendar;
     }
 
     @Transactional(readOnly = true)
@@ -55,12 +59,13 @@ public class ScheduleService {
     /**
      * Precio de cada hora en que la cancha abre ese día: clave = hora de inicio (0-23).
      * Una hora que no aparece en el mapa es una hora en que la cancha está cerrada.
+     * En un festivo rige el horario del domingo (ver {@link HolidayCalendar}).
      */
     @Transactional(readOnly = true)
     public Map<Integer, BigDecimal> hourlyPrices(UUID courtId, LocalDate date) {
         Map<Integer, BigDecimal> prices = new TreeMap<>();
         for (CourtSchedule schedule : scheduleRepository.findByCourtIdAndDayOfWeekOrderByStartHour(
-                courtId, date.getDayOfWeek().getValue())) {
+                courtId, holidayCalendar.scheduleDayOfWeek(date))) {
             for (int hour = schedule.getStartHour(); hour < schedule.getEndHour(); hour++) {
                 prices.put(hour, schedule.getPricePerHour());
             }
