@@ -35,11 +35,34 @@ services:
       JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-14d}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
+      APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost:5173}
+      # En desarrollo los correos van a Mailpit (ver http://localhost:8025)
+      MAIL_HOST: ${MAIL_HOST:-mailpit}
+      MAIL_PORT: ${MAIL_PORT:-1025}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-false}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-false}
+      MAIL_FROM: ${MAIL_FROM:-Sintéticas <no-reply@sinteticas.local>}
     ports:
       - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
+      mailpit:
+        condition: service_started
+    networks:
+      - sinteticas-network
+
+  # Buzón de correo falso para desarrollo: atrapa todos los correos que envía el backend.
+  # Bandeja de entrada en http://localhost:8025
+  mailpit:
+    image: axllent/mailpit:v1.22.3
+    container_name: sinteticas-mailpit
+    restart: unless-stopped
+    ports:
+      - "8025:8025"
+      - "1025:1025"
     networks:
       - sinteticas-network
 

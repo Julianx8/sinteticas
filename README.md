@@ -67,6 +67,7 @@ Verifica que respondan:
 - Backend → http://localhost:8080/api/v1/health
 - Documentación de la API (Swagger) → http://localhost:8080/swagger-ui.html
 - Frontend → http://localhost:5173
+- Correos de desarrollo (Mailpit) → http://localhost:8025
 - PostgreSQL → puerto 5432 (no se abre en navegador, es normal)
 
 Si algo falla en este paso, avisa en el grupo antes de seguir — mejor resolverlo entre los tres que cada uno con una versión distinta funcionando.
@@ -130,6 +131,7 @@ com.sinteticas.api
 ├── venue/         # sedes
 ├── court/         # canchas
 ├── schedule/      # horarios semanales con precios y bloqueos
+├── notification/  # envío de correos (reservas y restablecer contraseña)
 ├── reservation/   # reservas y disponibilidad
 └── report/        # reportes de sede (ocupación, ingresos, demanda) y de plataforma
 ```

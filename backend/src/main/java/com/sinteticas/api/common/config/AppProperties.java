@@ -1,5 +1,6 @@
 package com.sinteticas.api.common.config;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -15,7 +16,8 @@ import java.util.List;
 @ConfigurationProperties(prefix = "app")
 public record AppProperties(
         @NotNull ZoneId zoneId,
-        @NotNull Cors cors
+        @NotNull Cors cors,
+        @NotBlank String frontendUrl
 ) {
 
     public record Cors(@NotEmpty List<String> allowedOrigins) {
