@@ -34,6 +34,30 @@ class AdminUserIntegrationTest extends IntegrationTest {
     }
 
     @Test
+    void superAdminFiltersUsersByRoleAndSeesTheirVenues() throws Exception {
+        String admin = adminToken();
+        String adminId = readJson(mockMvc.perform(withToken(get("/api/v1/users/me"), admin))
+                .andReturn().getResponse().getContentAsString()).get("id").asText();
+        String adminEmail = readJson(mockMvc.perform(withToken(get("/api/v1/users/me"), admin))
+                .andReturn().getResponse().getContentAsString()).get("email").asText();
+        String customerEmail = uniqueEmail();
+        registerCustomer(customerEmail);
+        createVenue(admin, "Sede del admin");
+
+        mockMvc.perform(withToken(get("/api/v1/admin/users").param("q", adminEmail).param("role", "ADMIN"),
+                        superAdminToken()))
+                .andExpect(jsonPath("$.totalElements").value(1));
+        mockMvc.perform(withToken(get("/api/v1/admin/users").param("q", customerEmail).param("role", "ADMIN"),
+                        superAdminToken()))
+                .andExpect(jsonPath("$.totalElements").value(0));
+
+        mockMvc.perform(withToken(get("/api/v1/admin/users/{id}/venues", adminId), superAdminToken()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalElements").value(1))
+                .andExpect(jsonPath("$.content[0].name").value("Sede del admin"));
+    }
+
+    @Test
     void invalidSortReturnsBadRequest() throws Exception {
         mockMvc.perform(withToken(get("/api/v1/admin/users").param("sort", "noExiste"), superAdminToken()))
                 .andExpect(status().isBadRequest())

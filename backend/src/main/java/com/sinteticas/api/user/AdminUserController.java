@@ -6,6 +6,8 @@ import com.sinteticas.api.common.web.Pageables;
 import com.sinteticas.api.user.dto.UpdateRolesRequest;
 import com.sinteticas.api.user.dto.UpdateStatusRequest;
 import com.sinteticas.api.user.dto.UserResponse;
+import com.sinteticas.api.venue.VenueService;
+import com.sinteticas.api.venue.dto.VenueResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -32,25 +34,39 @@ public class AdminUserController {
 
     private static final Set<String> SORTABLE_FIELDS = Set.of("createdAt", "fullName", "email");
 
-    private final UserService userService;
+    private static final Set<String> VENUE_SORTABLE_FIELDS = Set.of("name", "createdAt");
 
-    public AdminUserController(UserService userService) {
+    private final UserService userService;
+    private final VenueService venueService;
+
+    public AdminUserController(UserService userService, VenueService venueService) {
         this.userService = userService;
+        this.venueService = venueService;
     }
 
     @GetMapping
-    @Operation(summary = "Buscar usuarios por nombre o email")
+    @Operation(summary = "Buscar usuarios por nombre o email, opcionalmente filtrando por rol")
     public PageResponse<UserResponse> search(@RequestParam(required = false) String q,
+                                             @RequestParam(required = false) RoleName role,
                                              @PageableDefault(size = 20, sort = "createdAt",
                                                      direction = Sort.Direction.DESC) Pageable pageable) {
         Pageable safePageable = Pageables.restrict(pageable, SORTABLE_FIELDS);
-        return PageResponse.of(userService.search(q, safePageable), UserResponse::from);
+        return PageResponse.of(userService.search(q, role, safePageable), UserResponse::from);
     }
 
     @GetMapping("/{userId}")
     @Operation(summary = "Ver un usuario")
     public UserResponse get(@PathVariable UUID userId) {
         return UserResponse.from(userService.getById(userId));
+    }
+
+    @GetMapping("/{userId}/venues")
+    @Operation(summary = "Sedes de las que el usuario es dueño (incluye inactivas)")
+    public PageResponse<VenueResponse> venues(@PathVariable UUID userId,
+                                              @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+        userService.getById(userId);
+        Pageable safePageable = Pageables.restrict(pageable, VENUE_SORTABLE_FIELDS);
+        return PageResponse.of(venueService.listOwnedBy(userId, safePageable), VenueResponse::from);
     }
 
     @PutMapping("/{userId}/roles")

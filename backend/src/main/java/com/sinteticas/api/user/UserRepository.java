@@ -20,10 +20,11 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     @Query("""
             select u from User u
-            where :q is null
-               or lower(u.fullName) like lower(concat('%', cast(:q as string), '%'))
-               or lower(u.email) like lower(concat('%', cast(:q as string), '%'))
+            where (:q is null
+                   or lower(u.fullName) like lower(concat('%', cast(:q as string), '%'))
+                   or lower(u.email) like lower(concat('%', cast(:q as string), '%')))
+              and (:role is null or exists (select 1 from u.roles r where r.name = :role))
             """)
-    Page<User> search(@Param("q") String q, Pageable pageable);
+    Page<User> search(@Param("q") String q, @Param("role") RoleName role, Pageable pageable);
 
 }
