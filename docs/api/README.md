@@ -48,6 +48,8 @@ El registro público siempre crea `CUSTOMER`. Para que un dueño de cancha sea `
 | POST | `/auth/login` | 🌐 | Iniciar sesión → tokens |
 | POST | `/auth/refresh` | 🌐 | Renovar tokens `{"refreshToken": "…"}` |
 | POST | `/auth/logout` | 🌐 | Cerrar la sesión de ese refresh token |
+| POST | `/auth/password/forgot` | 🌐 | Enviar enlace para restablecer contraseña `{"email": "…"}` (siempre 202) |
+| POST | `/auth/password/reset` | 🌐 | Contraseña nueva con el token del enlace `{"token": "…", "newPassword": "…"}` |
 | GET | `/users/me` | 🔒 | Mis datos |
 | PATCH | `/users/me` | 🔒 | Cambiar mi nombre |
 | PUT | `/users/me/password` | 🔒 | Cambiar mi contraseña (cierra todas las sesiones) |
@@ -161,6 +163,23 @@ Las tasas van de 0 a 1 con 4 decimales (`0.1538` = 15,38 %). Las NO_SHOW no suma
 En el resumen de plataforma `availableHours` y `occupancyRate` se omiten: la ocupación es una métrica por sede.
 La disponibilidad usa el horario **actual**: una cancha desactivada hoy cuenta 0 horas también en fechas pasadas.
 
+### Correos
+
+El backend envía correos de texto en segundo plano (si el correo falla, la operación no falla):
+
+| Cuándo | A quién |
+| --- | --- |
+| Se crea una reserva | Confirmación al cliente y aviso a la sede |
+| El cliente cancela | Aviso a la sede |
+| La sede cancela | Aviso al cliente, con el motivo |
+| Se pide restablecer la contraseña | Enlace al cliente: `APP_FRONTEND_URL/restablecer-contrasena?token=…` (1 hora, un solo uso) |
+
+El frontend debe tener la página `/restablecer-contrasena`, que lee el `token` de la URL y llama a `/auth/password/reset`.
+`/auth/password/forgot` responde igual exista o no el email (para no revelar qué cuentas existen) y envía máximo
+3 correos por hora a la misma cuenta. Restablecer la contraseña cierra todas las sesiones.
+
+En desarrollo los correos no salen a internet: llegan a **Mailpit**, en http://localhost:8025.
+
 ## Paginación
 
 Los listados paginados aceptan `?page=0&size=20&sort=campo,asc|desc` (máximo 100 por página) y responden:
@@ -189,7 +208,7 @@ Los errores de validación incluyen además `errors` con el mensaje de cada camp
 
 | HTTP | Códigos |
 | --- | --- |
-| 400 | `VALIDATION_ERROR`, `INVALID_SORT`, `INVALID_RANGE`, `RANGE_TOO_LARGE`, `INVALID_START_TIME`, `INVALID_SCHEDULE_RANGE`, `INVALID_CURRENT_PASSWORD` |
+| 400 | `INVALID_RESET_TOKEN`, `VALIDATION_ERROR`, `INVALID_SORT`, `INVALID_RANGE`, `RANGE_TOO_LARGE`, `INVALID_START_TIME`, `INVALID_SCHEDULE_RANGE`, `INVALID_CURRENT_PASSWORD` |
 | 401 | `UNAUTHORIZED` (sin token o token inválido/vencido), `INVALID_CREDENTIALS`, `INVALID_REFRESH_TOKEN`, `REFRESH_TOKEN_REUSED` |
 | 403 | `FORBIDDEN`, `ACCOUNT_DISABLED`, `VENUE_NOT_OWNED`, `COURT_NOT_OWNED` |
 | 404 | `USER_NOT_FOUND`, `VENUE_NOT_FOUND`, `COURT_NOT_FOUND`, `BLOCK_NOT_FOUND`, `RESERVATION_NOT_FOUND` |

@@ -9,15 +9,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.Base64;
-import java.util.HexFormat;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -28,12 +22,10 @@ import java.util.concurrent.TimeUnit;
 public class RefreshTokenService {
 
     private static final Logger log = LoggerFactory.getLogger(RefreshTokenService.class);
-    private static final int TOKEN_BYTES = 32;
 
     private final RefreshTokenRepository repository;
     private final Duration expiration;
     private final Clock clock;
-    private final SecureRandom random = new SecureRandom();
 
     public RefreshTokenService(RefreshTokenRepository repository, SecurityProperties properties, Clock clock) {
         this.repository = repository;
@@ -75,7 +67,7 @@ public class RefreshTokenService {
     @Transactional(noRollbackFor = ApiException.class)
     public Rotation rotate(String rawToken, ClientInfo client) {
         Instant now = clock.instant();
-        RefreshToken current = repository.findByHashForUpdate(hash(rawToken))
+        RefreshToken current = repository.findByHashForUpdate(SecureTokens.sha256(rawToken))
                 .orElseThrow(RefreshTokenService::invalidToken);
 
         if (current.isRevoked()) {
@@ -103,7 +95,7 @@ public class RefreshTokenService {
     /** Logout: cierra la sesión a la que pertenece el token. Si el token no existe no hace nada. */
     @Transactional
     public void revoke(String rawToken) {
-        repository.findByHashForUpdate(hash(rawToken))
+        repository.findByHashForUpdate(SecureTokens.sha256(rawToken))
                 .ifPresent(token -> repository.revokeFamily(token.getFamilyId(), clock.instant()));
     }
 
@@ -127,23 +119,12 @@ public class RefreshTokenService {
     }
 
     private Created create(User user, UUID familyId, ClientInfo client) {
-        byte[] bytes = new byte[TOKEN_BYTES];
-        random.nextBytes(bytes);
-        String raw = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+        String raw = SecureTokens.generate();
         Instant expiresAt = clock.instant().plus(expiration);
 
         RefreshToken entity = repository.save(
-                new RefreshToken(user, familyId, hash(raw), expiresAt, client.ip(), client.userAgent()));
+                new RefreshToken(user, familyId, SecureTokens.sha256(raw), expiresAt, client.ip(), client.userAgent()));
         return new Created(entity, new Issued(raw, expiresAt));
-    }
-
-    static String hash(String rawToken) {
-        try {
-            byte[] digest = MessageDigest.getInstance("SHA-256").digest(rawToken.getBytes(StandardCharsets.UTF_8));
-            return HexFormat.of().formatHex(digest);
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("SHA-256 no disponible", e);
-        }
     }
 
     private static ApiException invalidToken() {

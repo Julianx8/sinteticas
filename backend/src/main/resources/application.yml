@@ -31,6 +31,19 @@ spring:
     problemdetails:
       enabled: true
 
+  # Correo saliente. En desarrollo apunta a Mailpit (docker compose): http://localhost:8025
+  mail:
+    host: ${MAIL_HOST:localhost}
+    port: ${MAIL_PORT:1025}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail.smtp.auth: ${MAIL_SMTP_AUTH:false}
+      mail.smtp.starttls.enable: ${MAIL_SMTP_STARTTLS:false}
+      mail.smtp.connectiontimeout: 5000
+      mail.smtp.timeout: 5000
+      mail.smtp.writetimeout: 5000
+
   data:
     web:
       pageable:
@@ -54,6 +67,16 @@ springdoc:
     path: /v3/api-docs
 
 app:
+  # Dirección del frontend: se usa para armar los enlaces de los correos (p. ej. restablecer contraseña)
+  frontend-url: ${APP_FRONTEND_URL:http://localhost:5173}
+  mail:
+    # false = no se envía nada (solo se registra en el log)
+    enabled: ${MAIL_ENABLED:true}
+    from: ${MAIL_FROM:Sintéticas <no-reply@sinteticas.local>}
+  password-reset:
+    expiration: 1h
+    # Solicitudes por email por hora; las demás se ignoran en silencio
+    max-requests-per-hour: 3
   # Zona horaria del negocio: los horarios de las canchas se interpretan en hora de Colombia
   zone-id: America/Bogota
   cors:

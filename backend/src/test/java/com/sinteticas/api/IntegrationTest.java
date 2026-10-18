@@ -44,6 +44,9 @@ public abstract class IntegrationTest {
     @Autowired
     protected MutableClock clock;
 
+    @Autowired
+    protected CapturingMailSender mailSender;
+
     @AfterEach
     void resetClock() {
         clock.reset();

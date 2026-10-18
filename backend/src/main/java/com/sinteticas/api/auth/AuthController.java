@@ -2,9 +2,11 @@ package com.sinteticas.api.auth;
 
 import com.sinteticas.api.auth.RefreshTokenService.ClientInfo;
 import com.sinteticas.api.auth.dto.AuthResponse;
+import com.sinteticas.api.auth.dto.ForgotPasswordRequest;
 import com.sinteticas.api.auth.dto.LoginRequest;
 import com.sinteticas.api.auth.dto.RefreshRequest;
 import com.sinteticas.api.auth.dto.RegisterRequest;
+import com.sinteticas.api.auth.dto.ResetPasswordRequest;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -23,9 +25,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final PasswordResetService passwordResetService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, PasswordResetService passwordResetService) {
         this.authService = authService;
+        this.passwordResetService = passwordResetService;
     }
 
     @PostMapping("/register")
@@ -55,6 +59,21 @@ public class AuthController {
     @Operation(summary = "Cerrar la sesión de este refresh token")
     public void logout(@Valid @RequestBody RefreshRequest request) {
         authService.logout(request.refreshToken());
+    }
+
+    @PostMapping("/password/forgot")
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(summary = "Solicitar un enlace para restablecer la contraseña",
+            description = "Responde 202 siempre, exista o no el email (no revela qué cuentas existen)")
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
+        passwordResetService.requestReset(request.email());
+    }
+
+    @PostMapping("/password/reset")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    @Operation(summary = "Elegir una contraseña nueva con el token del correo (cierra todas las sesiones)")
+    public void resetPassword(@Valid @RequestBody ResetPasswordRequest request) {
+        passwordResetService.resetPassword(request.token(), request.newPassword());
     }
 
     private static ClientInfo clientInfo(HttpServletRequest request) {

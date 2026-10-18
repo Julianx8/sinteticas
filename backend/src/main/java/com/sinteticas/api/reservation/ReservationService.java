@@ -12,6 +12,7 @@ import com.sinteticas.api.schedule.ScheduleService;
 import com.sinteticas.api.user.User;
 import com.sinteticas.api.user.UserService;
 import com.sinteticas.api.venue.VenueService;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -47,11 +48,12 @@ public class ReservationService {
     private final UserService userService;
     private final BusinessTime time;
     private final ReservationProperties properties;
+    private final ApplicationEventPublisher events;
 
     public ReservationService(ReservationRepository reservationRepository, CourtService courtService,
                               VenueService venueService, ScheduleService scheduleService,
                               BlockService blockService, UserService userService, BusinessTime time,
-                              ReservationProperties properties) {
+                              ReservationProperties properties, ApplicationEventPublisher events) {
         this.reservationRepository = reservationRepository;
         this.courtService = courtService;
         this.venueService = venueService;
@@ -60,6 +62,7 @@ public class ReservationService {
         this.userService = userService;
         this.time = time;
         this.properties = properties;
+        this.events = events;
     }
 
     @Transactional
@@ -101,7 +104,9 @@ public class ReservationService {
             }
             throw ex;
         }
-        return ReservationResponse.from(reservation, time);
+        ReservationResponse response = ReservationResponse.from(reservation, time);
+        events.publishEvent(new ReservationEvents.Created(response, court.getVenue().getOwnerId()));
+        return response;
     }
 
     @Transactional(readOnly = true)
@@ -158,7 +163,10 @@ public class ReservationService {
             }
         }
         reservation.cancel(user.id(), blankToNull(reason), now);
-        return ReservationResponse.from(reservation, time);
+        ReservationResponse response = ReservationResponse.from(reservation, time);
+        events.publishEvent(new ReservationEvents.Cancelled(response,
+                reservation.getCourt().getVenue().getOwnerId(), byVenue));
+        return response;
     }
 
     /** La sede registra si la reserva se jugó (COMPLETED) o si el cliente no llegó (NO_SHOW). */
