@@ -1,5 +1,6 @@
 package com.sinteticas.api.auth;
 
+import com.sinteticas.api.auth.RefreshTokenService.ClientInfo;
 import com.sinteticas.api.auth.dto.AuthResponse;
 import com.sinteticas.api.auth.dto.LoginRequest;
 import com.sinteticas.api.auth.dto.RegisterRequest;
@@ -14,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+
 @Service
 public class AuthService {
 
@@ -22,26 +24,29 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final LoginAttemptService loginAttempts;
+    private final RefreshTokenService refreshTokenService;
 
     public AuthService(UserService userService, UserRepository userRepository,
                        PasswordEncoder passwordEncoder, JwtService jwtService,
-                       LoginAttemptService loginAttempts) {
+                       LoginAttemptService loginAttempts, RefreshTokenService refreshTokenService) {
         this.userService = userService;
         this.userRepository = userRepository;
         this.passwordEncoder = passwordEncoder;
         this.jwtService = jwtService;
         this.loginAttempts = loginAttempts;
+        this.refreshTokenService = refreshTokenService;
     }
 
     /** El registro público siempre crea clientes; los roles ADMIN los asigna un SUPER_ADMIN. */
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public AuthResponse register(RegisterRequest request, ClientInfo client) {
         User user = userService.register(request.fullName(), request.email(), request.password(), RoleName.CUSTOMER);
-        return toResponse(user);
+        return newSession(user, client);
     }
 
-    @Transactional(readOnly = true)
-    public AuthResponse login(LoginRequest request, String clientIp) {
+    @Transactional
+    public AuthResponse login(LoginRequest request, ClientInfo client) {
+        String clientIp = client.ip();
         loginAttempts.checkAllowed(request.email(), clientIp);
 
         // Mismo mensaje para "no existe" y "contraseña incorrecta": no revelamos qué emails están registrados
@@ -57,12 +62,32 @@ public class AuthService {
         if (!user.isEnabled()) {
             throw ApiException.forbidden("ACCOUNT_DISABLED", "La cuenta está desactivada");
         }
-        return toResponse(user);
+        return newSession(user, client);
     }
 
-    private AuthResponse toResponse(User user) {
-        String token = jwtService.issueToken(user);
-        return AuthResponse.bearer(token, jwtService.expiration().toSeconds(), UserResponse.from(user));
+    /**
+     * Cambia el refresh token por un par nuevo. El token de acceso nuevo lleva los roles ACTUALES
+     * del usuario: un cambio de roles se refleja en la siguiente renovación.
+     */
+    @Transactional(noRollbackFor = ApiException.class)
+    public AuthResponse refresh(String refreshToken, ClientInfo client) {
+        RefreshTokenService.Rotation rotation = refreshTokenService.rotate(refreshToken, client);
+        return toResponse(rotation.user(), rotation.token());
+    }
+
+    @Transactional
+    public void logout(String refreshToken) {
+        refreshTokenService.revoke(refreshToken);
+    }
+
+    private AuthResponse newSession(User user, ClientInfo client) {
+        return toResponse(user, refreshTokenService.issue(user, client));
+    }
+
+    private AuthResponse toResponse(User user, RefreshTokenService.Issued refresh) {
+        String accessToken = jwtService.issueToken(user);
+        return AuthResponse.bearer(accessToken, jwtService.expiration().toSeconds(), refresh.value(),
+                refreshTokenService.expiration().toSeconds(), UserResponse.from(user));
     }
 
 }

@@ -1,5 +1,6 @@
 package com.sinteticas.api.user;
 
+import com.sinteticas.api.auth.RefreshTokenService;
 import com.sinteticas.api.common.error.ApiException;
 import com.sinteticas.api.user.dto.ChangePasswordRequest;
 import com.sinteticas.api.user.dto.UpdateProfileRequest;
@@ -19,12 +20,14 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+    private final RefreshTokenService refreshTokenService;
 
     public UserService(UserRepository userRepository, RoleRepository roleRepository,
-                       PasswordEncoder passwordEncoder) {
+                       PasswordEncoder passwordEncoder, RefreshTokenService refreshTokenService) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
+        this.refreshTokenService = refreshTokenService;
     }
 
     @Transactional(readOnly = true)
@@ -58,6 +61,8 @@ public class UserService {
             throw ApiException.badRequest("INVALID_CURRENT_PASSWORD", "La contraseña actual no es correcta");
         }
         user.setPasswordHash(passwordEncoder.encode(request.newPassword()));
+        // Si alguien más conocía la contraseña anterior, sus sesiones dejan de servir
+        refreshTokenService.revokeAllForUser(userId);
     }
 
     @Transactional(readOnly = true)
@@ -85,6 +90,9 @@ public class UserService {
         }
         User user = getById(userId);
         user.setEnabled(enabled);
+        if (!enabled) {
+            refreshTokenService.revokeAllForUser(userId);
+        }
         return user;
     }
 

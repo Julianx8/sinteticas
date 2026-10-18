@@ -62,8 +62,11 @@ app:
     jwt:
       # Clave HMAC para firmar los tokens: mínimo 32 caracteres, sin valor por defecto
       secret: ${JWT_SECRET}
-      expiration: ${JWT_EXPIRATION:8h}
+      # Token de acceso corto: si se filtra, sirve poco tiempo. Se renueva con el refresh token.
+      expiration: ${JWT_EXPIRATION:15m}
       issuer: sinteticas-api
+    refresh:
+      expiration: ${JWT_REFRESH_EXPIRATION:14d}
     login-throttle:
       # Intentos fallidos permitidos dentro de la ventana antes de responder 429
       max-failures-per-email: 5

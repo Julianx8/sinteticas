@@ -12,8 +12,19 @@ Los endpoints protegidos requieren el header:
 Authorization: Bearer <accessToken>
 ```
 
-El token dura 8 horas (`JWT_EXPIRATION`) y contiene el id, el email y los roles del usuario.
-Si un SUPER_ADMIN le cambia los roles a alguien, esa persona debe volver a iniciar sesión para que su token tenga los roles nuevos.
+Login y registro devuelven dos tokens:
+
+| Token | Dura | Para qué |
+| --- | --- | --- |
+| `accessToken` | 15 minutos (`JWT_EXPIRATION`) | Va en el header `Authorization` de cada petición |
+| `refreshToken` | 14 días (`JWT_REFRESH_EXPIRATION`) | Se envía a `POST /auth/refresh` para obtener un par nuevo |
+
+Flujo recomendado para el frontend: si una petición responde `401`, llamar a `/auth/refresh` **una vez** con el
+refresh token guardado, reemplazar ambos tokens y repetir la petición. Si el refresh también falla, ir al login.
+Cada refresh token sirve una sola vez: reutilizar uno viejo cierra la sesión (`REFRESH_TOKEN_REUSED`).
+
+Los roles se leen de nuevo en cada renovación: si un SUPER_ADMIN cambia los roles de alguien, aplican en máximo 15 minutos.
+Tras 5 intentos de login fallidos en 15 minutos, `/auth/login` responde `429` con el header `Retry-After`.
 
 ## Roles
 
@@ -33,11 +44,14 @@ El registro público siempre crea `CUSTOMER`. Para que un dueño de cancha sea `
 
 | Método | Ruta | | Descripción |
 | --- | --- | --- | --- |
-| POST | `/auth/register` | 🌐 | Registrar cliente → token |
-| POST | `/auth/login` | 🌐 | Iniciar sesión → token |
+| POST | `/auth/register` | 🌐 | Registrar cliente → tokens |
+| POST | `/auth/login` | 🌐 | Iniciar sesión → tokens |
+| POST | `/auth/refresh` | 🌐 | Renovar tokens `{"refreshToken": "…"}` |
+| POST | `/auth/logout` | 🌐 | Cerrar la sesión de ese refresh token |
 | GET | `/users/me` | 🔒 | Mis datos |
 | PATCH | `/users/me` | 🔒 | Cambiar mi nombre |
-| PUT | `/users/me/password` | 🔒 | Cambiar mi contraseña |
+| PUT | `/users/me/password` | 🔒 | Cambiar mi contraseña (cierra todas las sesiones) |
+| DELETE | `/users/me/sessions` | 🔒 | Cerrar todas mis sesiones |
 
 ### Administración de usuarios
 
@@ -176,8 +190,9 @@ Los errores de validación incluyen además `errors` con el mensaje de cada camp
 | HTTP | Códigos |
 | --- | --- |
 | 400 | `VALIDATION_ERROR`, `INVALID_SORT`, `INVALID_RANGE`, `RANGE_TOO_LARGE`, `INVALID_START_TIME`, `INVALID_SCHEDULE_RANGE`, `INVALID_CURRENT_PASSWORD` |
-| 401 | `UNAUTHORIZED` (sin token o token inválido/vencido), `INVALID_CREDENTIALS` |
+| 401 | `UNAUTHORIZED` (sin token o token inválido/vencido), `INVALID_CREDENTIALS`, `INVALID_REFRESH_TOKEN`, `REFRESH_TOKEN_REUSED` |
 | 403 | `FORBIDDEN`, `ACCOUNT_DISABLED`, `VENUE_NOT_OWNED`, `COURT_NOT_OWNED` |
 | 404 | `USER_NOT_FOUND`, `VENUE_NOT_FOUND`, `COURT_NOT_FOUND`, `BLOCK_NOT_FOUND`, `RESERVATION_NOT_FOUND` |
 | 409 | `EMAIL_ALREADY_REGISTERED`, `COURT_NAME_TAKEN`, `RESERVATION_SLOT_TAKEN`, `SLOT_BLOCKED`, `BLOCK_CONFLICTS_WITH_RESERVATIONS`, `DATA_CONFLICT` |
+| 429 | `TOO_MANY_LOGIN_ATTEMPTS` (con `Retry-After` y `retryAfterSeconds`) |
 | 422 | `OUTSIDE_SCHEDULE`, `DURATION_TOO_LONG`, `CROSSES_MIDNIGHT`, `RESERVATION_IN_PAST`, `TOO_FAR_AHEAD`, `TOO_MANY_ACTIVE_RESERVATIONS`, `COURT_NOT_BOOKABLE`, `CANCELLATION_TOO_LATE`, `RESERVATION_ALREADY_STARTED`, `RESERVATION_NOT_ACTIVE`, `RESERVATION_NOT_STARTED`, `SCHEDULE_OVERLAP`, `CANNOT_REMOVE_OWN_SUPER_ADMIN`, `CANNOT_DISABLE_SELF` |
