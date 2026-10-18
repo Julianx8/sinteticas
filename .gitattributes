@@ -1,0 +1,16 @@
+# Normaliza finales de línea en el repositorio
+* text=auto
+
+# Scripts que se ejecutan dentro de contenedores Linux: siempre LF
+# (con CRLF, "./mvnw" falla en el docker build con "/bin/sh^M: bad interpreter")
+mvnw text eol=lf
+*.sh text eol=lf
+
+# Scripts de Windows: siempre CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+
+# Binarios
+*.jar binary
+*.png binary
+*.jpg binary

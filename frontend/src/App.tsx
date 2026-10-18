@@ -10,7 +10,7 @@ function App() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    fetch('http://localhost:8080/api/v1/health')
+    fetch(`${import.meta.env.VITE_API_URL}/api/v1/health`)
       .then((res) => res.json())
       .then((data) => setHealth(data))
       .catch(() => setError('No se pudo conectar con el backend'))
