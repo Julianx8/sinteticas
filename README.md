@@ -117,6 +117,28 @@ sinteticas/
 
 **Cómo se conectan las piezas:** `docker-compose.yml` levanta primero PostgreSQL, luego el backend (que aplica automáticamente las migraciones de Flyway sobre la base de datos), y luego el frontend, que le habla al backend por HTTP en `localhost:8080`.
 
+### Organización del backend
+
+El código está organizado **por funcionalidad** (no por capa): cada paquete tiene su entidad, repositorio,
+servicio, controlador y DTOs. Así cada quien trabaja en su rama sin chocar con los demás.
+
+```
+com.sinteticas.api
+├── common/        # configuración, errores (ProblemDetail), paginación, hora del negocio
+├── auth/          # login/registro, JWT, seguridad, creación del primer SUPER_ADMIN
+├── user/          # usuarios, roles, "mi cuenta" y administración de usuarios
+├── venue/         # sedes
+├── court/         # canchas
+├── schedule/      # horarios semanales con precios y bloqueos
+└── reservation/   # reservas y disponibilidad
+```
+
+Documentación:
+
+- [docs/api/README.md](docs/api/README.md): endpoints, roles, reglas de reserva y códigos de error (o Swagger en http://localhost:8080/swagger-ui.html)
+- [docs/base-datos/modelo.md](docs/base-datos/modelo.md): diagrama entidad-relación y restricciones
+- [docs/decisiones/](docs/decisiones/): decisiones de arquitectura (JWT, reservas sin solapamiento, zona horaria)
+
 ---
 
 ## 5. Quién trabaja en qué
@@ -184,7 +206,7 @@ Luego en GitHub: abre un **Pull Request hacia `develop`** (nunca hacia `main`). 
 - ❌ Nunca se sube el archivo `.env`
 - ❌ Nunca se guardan contraseñas o claves en el código
 - ❌ No se cambian tablas de la base de datos a mano — todo cambio va en una nueva migración de Flyway (`V2__...`, `V3__...`, nunca se edita `V1` una vez fue mergeada a `develop`)
-- ❌ No se hace merge de un PR sin que al menos compile y levante con `docker compose up --build`
+- ❌ No se hace merge de un PR sin que al menos compile y levante con `docker compose up --build` (GitHub Actions corre los tests en cada PR; si sale en rojo, no se mezcla)
 
 ---
 
