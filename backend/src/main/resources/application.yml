@@ -63,6 +63,9 @@ management:
 springdoc:
   swagger-ui:
     path: /swagger-ui.html
+    # El token pegado en "Authorize" se conserva al recargar la página
+    persist-authorization: true
+    display-request-duration: true
   api-docs:
     path: /v3/api-docs
 

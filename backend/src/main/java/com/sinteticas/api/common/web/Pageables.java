@@ -1,6 +1,7 @@
 package com.sinteticas.api.common.web;
 
 import com.sinteticas.api.common.error.ApiException;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 

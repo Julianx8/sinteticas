@@ -11,6 +11,7 @@ import com.sinteticas.api.venue.dto.VenueResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PageableDefault;
@@ -48,7 +49,7 @@ public class AdminUserController {
     @Operation(summary = "Buscar usuarios por nombre o email, opcionalmente filtrando por rol")
     public PageResponse<UserResponse> search(@RequestParam(required = false) String q,
                                              @RequestParam(required = false) RoleName role,
-                                             @PageableDefault(size = 20, sort = "createdAt",
+                                             @ParameterObject @PageableDefault(size = 20, sort = "createdAt",
                                                      direction = Sort.Direction.DESC) Pageable pageable) {
         Pageable safePageable = Pageables.restrict(pageable, SORTABLE_FIELDS);
         return PageResponse.of(userService.search(q, role, safePageable), UserResponse::from);
@@ -63,7 +64,7 @@ public class AdminUserController {
     @GetMapping("/{userId}/venues")
     @Operation(summary = "Sedes de las que el usuario es dueño (incluye inactivas)")
     public PageResponse<VenueResponse> venues(@PathVariable UUID userId,
-                                              @PageableDefault(size = 20, sort = "name") Pageable pageable) {
+                                              @ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         userService.getById(userId);
         Pageable safePageable = Pageables.restrict(pageable, VENUE_SORTABLE_FIELDS);
         return PageResponse.of(venueService.listOwnedBy(userId, safePageable), VenueResponse::from);
