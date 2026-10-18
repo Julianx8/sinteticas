@@ -1,0 +1,154 @@
+# API REST — Sintéticas
+
+Base: `http://localhost:8080/api/v1` · Documentación interactiva: **http://localhost:8080/swagger-ui.html**
+
+En Swagger, usa el botón **Authorize** y pega el `accessToken` que devuelve `/auth/login`.
+
+## Autenticación
+
+Los endpoints protegidos requieren el header:
+
+```
+Authorization: Bearer <accessToken>
+```
+
+El token dura 8 horas (`JWT_EXPIRATION`) y contiene el id, el email y los roles del usuario.
+Si un SUPER_ADMIN le cambia los roles a alguien, esa persona debe volver a iniciar sesión para que su token tenga los roles nuevos.
+
+## Roles
+
+| Rol | Quién es | Qué puede hacer |
+| --- | --- | --- |
+| `CUSTOMER` | Cualquier persona registrada | Reservar, ver y cancelar sus reservas |
+| `ADMIN` | Dueño de una o varias sedes | Todo lo anterior + administrar **sus** sedes, canchas, horarios, bloqueos y reservas |
+| `SUPER_ADMIN` | Administrador de la plataforma | Gestionar usuarios y roles; administrar cualquier sede |
+
+El registro público siempre crea `CUSTOMER`. Para que un dueño de cancha sea `ADMIN`, un SUPER_ADMIN usa `PUT /admin/users/{id}/roles`.
+
+## Endpoints
+
+🌐 = público (no necesita token) · 🔒 = cualquier usuario autenticado · 🏟️ = ADMIN o SUPER_ADMIN · 👑 = solo SUPER_ADMIN
+
+### Autenticación y cuenta
+
+| Método | Ruta | | Descripción |
+| --- | --- | --- | --- |
+| POST | `/auth/register` | 🌐 | Registrar cliente → token |
+| POST | `/auth/login` | 🌐 | Iniciar sesión → token |
+| GET | `/users/me` | 🔒 | Mis datos |
+| PATCH | `/users/me` | 🔒 | Cambiar mi nombre |
+| PUT | `/users/me/password` | 🔒 | Cambiar mi contraseña |
+
+### Administración de usuarios
+
+| Método | Ruta | | Descripción |
+| --- | --- | --- | --- |
+| GET | `/admin/users?q=` | 👑 | Buscar usuarios (paginado) |
+| GET | `/admin/users/{id}` | 👑 | Ver usuario |
+| PUT | `/admin/users/{id}/roles` | 👑 | Reemplazar roles `{"roles": ["CUSTOMER", "ADMIN"]}` |
+| PUT | `/admin/users/{id}/status` | 👑 | Activar/desactivar `{"enabled": false}` |
+
+### Sedes y canchas
+
+| Método | Ruta | | Descripción |
+| --- | --- | --- | --- |
+| GET | `/venues?q=&neighborhood=&courtType=` | 🌐 | Catálogo de sedes activas (paginado) |
+| GET | `/venues/mine` | 🏟️ | Mis sedes (incluye inactivas) |
+| GET | `/venues/{id}` | 🌐 | Detalle de sede |
+| POST | `/venues` | 🏟️ | Crear sede (quien la crea es el dueño) |
+| PUT | `/venues/{id}` | 🏟️ | Actualizar sede (`active: false` la desactiva) |
+| GET | `/venues/{id}/courts` | 🌐 | Canchas de la sede |
+| POST | `/venues/{id}/courts` | 🏟️ | Crear cancha |
+| GET | `/courts/{id}` | 🌐 | Detalle de cancha |
+| PUT | `/courts/{id}` | 🏟️ | Actualizar cancha |
+
+Tipos de cancha: `FUTBOL_5`, `FUTBOL_6`, `FUTBOL_7`, `FUTBOL_8`, `FUTBOL_11`.
+
+### Horarios y bloqueos
+
+| Método | Ruta | | Descripción |
+| --- | --- | --- | --- |
+| GET | `/courts/{id}/schedules` | 🌐 | Horario semanal con precios |
+| PUT | `/courts/{id}/schedules` | 🏟️ | Reemplazar horario completo |
+| GET | `/courts/{id}/blocks?from=2026-12-01&to=2026-12-31` | 🏟️ | Bloqueos en un rango |
+| POST | `/courts/{id}/blocks` | 🏟️ | Bloquear un periodo |
+| DELETE | `/courts/{id}/blocks/{blockId}` | 🏟️ | Quitar bloqueo |
+
+Ejemplo de horario (lunes con precio de día y de noche; `dayOfWeek`: 1 = lunes … 7 = domingo; `endHour` 24 = medianoche):
+
+```json
+{
+  "slots": [
+    { "dayOfWeek": 1, "startHour": 8,  "endHour": 18, "pricePerHour": 60000 },
+    { "dayOfWeek": 1, "startHour": 18, "endHour": 24, "pricePerHour": 90000 }
+  ]
+}
+```
+
+### Reservas
+
+| Método | Ruta | | Descripción |
+| --- | --- | --- | --- |
+| GET | `/courts/{id}/availability?date=2026-10-20` | 🌐 | Horas del día con precio y estado |
+| POST | `/reservations` | 🔒 | Reservar |
+| GET | `/reservations/mine?status=&upcoming=true` | 🔒 | Mis reservas (paginado) |
+| GET | `/reservations/{id}` | 🔒 | Detalle (el cliente o la sede) |
+| POST | `/reservations/{id}/cancel` | 🔒 | Cancelar `{"reason": "..."}` (opcional) |
+| POST | `/reservations/{id}/complete` | 🏟️ | Marcar que se jugó |
+| POST | `/reservations/{id}/no-show` | 🏟️ | Marcar que el cliente no llegó |
+| GET | `/venues/{id}/reservations?from=&to=&status=&courtId=` | 🏟️ | Agenda de la sede |
+
+Crear una reserva:
+
+```json
+POST /reservations
+{ "courtId": "…", "startAt": "2026-10-20T18:00:00-05:00", "durationHours": 2, "notes": "Partido de la oficina" }
+```
+
+Estados de la disponibilidad: `AVAILABLE`, `BOOKED`, `BLOCKED`, `PAST`.
+
+Estados de una reserva: `CONFIRMED` → `CANCELLED` | `COMPLETED` | `NO_SHOW`.
+
+### Reglas de reserva (configurables en `application.yml`, sección `app.reservations`)
+
+- Empiezan en punto y duran horas enteras, máximo **3 horas**, y terminan a más tardar a la medianoche.
+- Solo dentro del horario de la cancha, sin bloqueos y sin cruzarse con otra reserva.
+- Hasta **30 días** de anticipación; nunca en el pasado.
+- Un cliente puede tener máximo **5 reservas futuras activas**.
+- El cliente cancela hasta **2 horas** antes; la sede puede cancelar en cualquier momento antes del inicio.
+- El precio se calcula sumando el precio de cada hora y **queda fijo** aunque la sede cambie el horario después.
+
+## Paginación
+
+Los listados paginados aceptan `?page=0&size=20&sort=campo,asc|desc` (máximo 100 por página) y responden:
+
+```json
+{ "content": [ … ], "page": 0, "size": 20, "totalElements": 42, "totalPages": 3 }
+```
+
+## Fechas
+
+Todas las fechas van en ISO-8601 **con zona horaria**. Las respuestas usan la hora de Colombia (`-05:00`), por ejemplo `2026-10-20T18:00:00-05:00`.
+
+## Errores
+
+Todos los errores tienen el mismo formato ([RFC 7807](https://www.rfc-editor.org/rfc/rfc7807)). El frontend debe usar `code`, que no cambia, y no el texto de `detail`:
+
+```json
+{ "status": 409, "title": "Conflict", "detail": "Ese horario ya está reservado", "code": "RESERVATION_SLOT_TAKEN" }
+```
+
+Los errores de validación incluyen además `errors` con el mensaje de cada campo:
+
+```json
+{ "status": 400, "code": "VALIDATION_ERROR", "errors": { "email": "must be a well-formed email address" } }
+```
+
+| HTTP | Códigos |
+| --- | --- |
+| 400 | `VALIDATION_ERROR`, `INVALID_SORT`, `INVALID_RANGE`, `RANGE_TOO_LARGE`, `INVALID_START_TIME`, `INVALID_SCHEDULE_RANGE`, `INVALID_CURRENT_PASSWORD` |
+| 401 | `UNAUTHORIZED` (sin token o token inválido/vencido), `INVALID_CREDENTIALS` |
+| 403 | `FORBIDDEN`, `ACCOUNT_DISABLED`, `VENUE_NOT_OWNED`, `COURT_NOT_OWNED` |
+| 404 | `USER_NOT_FOUND`, `VENUE_NOT_FOUND`, `COURT_NOT_FOUND`, `BLOCK_NOT_FOUND`, `RESERVATION_NOT_FOUND` |
+| 409 | `EMAIL_ALREADY_REGISTERED`, `COURT_NAME_TAKEN`, `RESERVATION_SLOT_TAKEN`, `SLOT_BLOCKED`, `BLOCK_CONFLICTS_WITH_RESERVATIONS`, `DATA_CONFLICT` |
+| 422 | `OUTSIDE_SCHEDULE`, `DURATION_TOO_LONG`, `CROSSES_MIDNIGHT`, `RESERVATION_IN_PAST`, `TOO_FAR_AHEAD`, `TOO_MANY_ACTIVE_RESERVATIONS`, `COURT_NOT_BOOKABLE`, `CANCELLATION_TOO_LATE`, `RESERVATION_ALREADY_STARTED`, `RESERVATION_NOT_ACTIVE`, `RESERVATION_NOT_STARTED`, `SCHEDULE_OVERLAP`, `CANNOT_REMOVE_OWN_SUPER_ADMIN`, `CANNOT_DISABLE_SELF` |
