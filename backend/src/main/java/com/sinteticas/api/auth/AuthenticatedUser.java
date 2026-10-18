@@ -4,6 +4,7 @@ import com.sinteticas.api.user.RoleName;
 import org.springframework.security.oauth2.jwt.Jwt;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -19,6 +20,14 @@ public record AuthenticatedUser(UUID id, Set<RoleName> roles) {
         Set<RoleName> roleNames = roles == null ? Set.of()
                 : roles.stream().map(RoleName::valueOf).collect(Collectors.toUnmodifiableSet());
         return new AuthenticatedUser(UUID.fromString(jwt.getSubject()), roleNames);
+    }
+
+    /**
+     * Para endpoints públicos que muestran más información al dueño: usar con
+     * {@code @AuthenticationPrincipal Jwt jwt}, que es {@code null} si no hay token.
+     */
+    public static Optional<AuthenticatedUser> fromNullable(Jwt jwt) {
+        return Optional.ofNullable(jwt).map(AuthenticatedUser::from);
     }
 
     public boolean isSuperAdmin() {
