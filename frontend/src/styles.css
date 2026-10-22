@@ -472,7 +472,7 @@ a:focus-visible {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-size: 0.75rem;
-  color: #8fb4ff;
+  color: #7d8f84;
 }
 
 h1, h2, h3, p {
@@ -614,12 +614,12 @@ h1 {
 }
 
 .location-line {
-  color: #dfeaf6;
+  color: #455a52;
   margin-bottom: 0.2rem;
 }
 
 .mini-price {
-  color: #a7f3d0;
+  color: var(--green);
   font-weight: 700;
 }
 
@@ -635,7 +635,7 @@ h1 {
 
 .description,
 .muted {
-  color: #c5d0e3;
+  color: var(--muted);
 }
 
 .action-link,
@@ -703,7 +703,7 @@ h1 {
 }
 
 .venue-meta {
-  color: #dfeaf6;
+  color: #455a52;
 }
 
 .date-picker-wrap {
@@ -779,8 +779,8 @@ h1 {
 
 .profile-card,
 .admin-card {
-  background: rgba(15, 23, 42, 0.8);
-  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid var(--line);
   border-radius: 16px;
   padding: 1rem;
 }
@@ -803,15 +803,15 @@ h1 {
   display: inline-flex;
   border-radius: 999px;
   padding: 0.45rem 0.7rem;
-  background: rgba(96, 165, 250, 0.12);
-  border: 1px solid rgba(96, 165, 250, 0.24);
-  color: #dbeafe;
+  background: var(--green-soft);
+  border: 1px solid rgba(47, 125, 92, 0.2);
+  color: var(--green);
   text-transform: uppercase;
   font-size: 0.72rem;
 }
 
 .label {
-  color: #a9b8d1;
+  color: var(--muted);
   margin-bottom: 0.2rem;
 }
 
@@ -945,11 +945,11 @@ h1 {
 .stack-form textarea {
   width: 100%;
   min-height: 120px;
-  background: rgba(15, 23, 42, 0.9);
-  border: 1px solid rgba(148, 163, 184, 0.28);
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid rgba(102, 117, 110, 0.18);
   border-radius: 10px;
   padding: 0.8rem 0.9rem;
-  color: #edf2ff;
+  color: var(--ink);
   resize: vertical;
 }
 
@@ -977,15 +977,15 @@ h1 {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  background: rgba(15, 23, 42, 0.7);
-  border: 1px solid rgba(148, 163, 184, 0.16);
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid var(--line);
   border-radius: 12px;
   padding: 0.8rem 0.9rem;
 }
 
 .mini-item p {
   margin: 0.2rem 0 0;
-  color: #c5d0e3;
+  color: var(--muted);
 }
 
 .form-panel {
@@ -1132,5 +1132,390 @@ h1 {
   .mini-item {
     flex-direction: column;
     align-items: flex-start;
+  }
+}
+
+/* ---------- Componentes agregados con los flujos completos ---------- */
+
+.heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+a.user-pill {
+  text-decoration: none;
+}
+
+/* Tarjetas que son enlaces: sin subrayado ni color de enlace */
+a.reservation-card,
+a.schedule-item {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
+a.schedule-item {
+  display: flex;
+}
+
+a.reservation-card:hover,
+a.schedule-item:hover {
+  border-color: rgba(184, 104, 70, 0.35);
+}
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.filter-row > input,
+.filter-row select {
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(102, 117, 110, 0.16);
+  border-radius: 12px;
+  padding: 0.7rem 0.9rem;
+  color: var(--ink);
+}
+
+.filter-row > input {
+  flex: 1 1 220px;
+}
+
+.filter-row label {
+  display: grid;
+  gap: 0.25rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.quick-ranges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.tabs {
+  display: inline-flex;
+  gap: 0.25rem;
+  padding: 0.25rem;
+  margin-bottom: 1rem;
+  border-radius: 999px;
+  background: rgba(98, 113, 100, 0.08);
+}
+
+.tabs button {
+  border: none;
+  background: transparent;
+  border-radius: 999px;
+  padding: 0.5rem 1rem;
+  color: var(--muted);
+}
+
+.tabs button.active {
+  background: var(--panel-strong);
+  color: var(--ink);
+  box-shadow: 0 2px 6px rgba(68, 82, 74, 0.08);
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.time-chip.unavailable {
+  opacity: 0.55;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.mini-item.editing {
+  display: block;
+}
+
+.agenda-day h3 {
+  margin: 1.25rem 0 0.5rem;
+  text-transform: capitalize;
+}
+
+.peak-list {
+  margin: 0;
+  padding-left: 1.25rem;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.metric-tiles {
+  margin: 1rem 0;
+}
+
+/* Tablas */
+.table-wrap {
+  overflow-x: auto;
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 0.55rem 0.6rem;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.data-table th {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.data-table td select,
+.data-table td input {
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(102, 117, 110, 0.16);
+  border-radius: 10px;
+  padding: 0.45rem 0.6rem;
+  color: var(--ink);
+}
+
+.data-table td input[type='number'] {
+  width: 8rem;
+}
+
+/* Gráficas: un solo tono (verde del tema), marcas delgadas y ejes discretos */
+.chart {
+  margin: 0;
+}
+
+.chart-caption {
+  min-height: 1.5rem;
+  margin-bottom: 0.5rem;
+  font-size: 0.9rem;
+}
+
+.bar-chart {
+  display: flex;
+  gap: 0.5rem;
+  height: 180px;
+}
+
+.bar-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.75rem;
+  color: var(--muted);
+  min-width: 1.5rem;
+  text-align: right;
+}
+
+.bar-plot {
+  flex: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  border-bottom: 1px solid var(--line);
+}
+
+.bar-slot {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  outline: none;
+}
+
+.bar {
+  width: 100%;
+  min-height: 0;
+  background: var(--green);
+  border-radius: 4px 4px 0 0;
+  opacity: 0.85;
+}
+
+.bar-slot.hovered .bar,
+.bar-slot:focus-visible .bar {
+  opacity: 1;
+  box-shadow: 0 0 0 2px rgba(47, 125, 92, 0.25);
+}
+
+.bar-labels {
+  display: flex;
+  justify-content: space-between;
+  margin-left: 2rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.chart-table {
+  margin-top: 0.75rem;
+}
+
+.chart-table summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.heatmap {
+  display: grid;
+  gap: 2px;
+  overflow-x: auto;
+}
+
+.heatmap-label {
+  font-size: 0.72rem;
+  color: var(--muted);
+  text-align: center;
+  align-self: center;
+}
+
+.heatmap-cell {
+  aspect-ratio: 1;
+  min-height: 1.4rem;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--green) var(--strength, 0%), rgba(98, 113, 100, 0.06));
+  outline: none;
+}
+
+.heatmap-cell:hover,
+.heatmap-cell:focus-visible {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.heatmap-legend {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.heatmap-ramp {
+  width: 120px;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--green) 15%, white), var(--green));
+}
+
+@media (max-width: 720px) {
+  .heading-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bar-chart {
+    height: 140px;
+  }
+}
+
+/* Botones: .primary/.secondary solo traen colores; aquí la forma común */
+button.primary,
+button.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  border-radius: 10px;
+  padding: 0.7rem 1.1rem;
+  font-weight: 600;
+}
+
+button.primary:disabled,
+button.secondary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.booking-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 12px;
+  background: var(--accent-soft);
+}
+
+.booking-summary strong {
+  font-size: 1.15rem;
+}
+
+/* Separación entre bloques apilados dentro de una página */
+.content-panel > * + .admin-card,
+.content-panel > * + .admin-grid,
+.admin-dashboard-shell > * + .admin-card {
+  margin-top: 1rem;
+}
+
+.venue-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* Desde/Hasta lado a lado (el contenedor base limita el ancho a 240px) */
+.date-picker-wrap.inline-range {
+  max-width: 420px;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+
+.peak-list + p {
+  margin-top: 1rem;
+}
+
+/* Celular: nada se sale del ancho de la pantalla */
+.admin-card,
+.content-panel,
+.admin-grid > * {
+  min-width: 0;
+}
+
+@media (max-width: 720px) {
+  .page-content {
+    padding: 1rem 0.75rem 3rem;
+  }
+
+  .admin-summary-grid,
+  .admin-lower-grid,
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .content-panel {
+    padding: 1rem;
+  }
+
+  .booking-summary {
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+
+/* Diseños de dos columnas: una sola columna en pantallas angostas */
+@media (max-width: 860px) {
+  .welcome-panel,
+  .dashboard-layout,
+  .auth-shell,
+  .summary-grid {
+    grid-template-columns: 1fr;
+  }
+
+  /* En el login el formulario va primero; el panel ilustrado sobra en celular */
+  .auth-visual-panel {
+    display: none;
   }
 }
