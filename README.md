@@ -143,14 +143,31 @@ Documentación:
 - [docs/base-datos/modelo.md](docs/base-datos/modelo.md): diagrama entidad-relación y restricciones
 - [docs/decisiones/](docs/decisiones/): decisiones de arquitectura (JWT, reservas sin solapamiento, zona horaria)
 
-### Cómo habla el frontend con el backend
+### Organización del frontend
 
-Toda llamada a la API pasa por `apiFetch` en `frontend/src/App.tsx`:
+```
+frontend/src
+├── api/client.ts     # apiFetch: token, renovación automática con refresh token, errores
+├── api/types.ts      # tipos de la API (deben coincidir con los DTO del backend)
+├── auth/             # sesión (useAuth) y protección de rutas por rol (RequireAuth)
+├── components/       # layout, estados de carga/error, gráficas de reportes
+├── lib/format.ts     # precios, fechas y horas en hora de Colombia
+└── pages/            # una página por ruta; owner/ = dueño de sede, admin/ = super admin
+```
 
-- **Sesión:** se guarda en `localStorage` (`sinteticas-auth`) con `token`, `refreshToken` y `user`.
-- **Token vencido:** el token de acceso dura 15 minutos. Si una petición recibe 401, `apiFetch` llama una sola vez a `/auth/refresh`, guarda el par nuevo y repite la petición. Si la renovación falla, cierra la sesión.
-- **Fechas:** se envían en ISO-8601 con zona (`2026-10-28T19:00:00-05:00`). Un `<input type="datetime-local">` no trae zona, así que hay que pasarlo por `withBogotaOffset`.
-- **Nombres de campos:** los toma de los DTO del backend (`startAt`/`endAt`, `startHour`/`endHour`/`pricePerHour`…). Si cambia un DTO, hay que actualizar el tipo correspondiente en `App.tsx`.
+| Ruta | Quién | Qué hace |
+|---|---|---|
+| `/`, `/venues/:id` | Todos | Buscar sedes, ver disponibilidad y reservar |
+| `/login`, `/register`, `/olvide-contrasena`, `/restablecer-contrasena` | Todos | Cuenta (el correo de recuperación enlaza a la última) |
+| `/mis-reservas`, `/reservas/:id`, `/mi-perfil` | Con sesión | Reservas, cancelar, perfil, contraseña, cerrar sesiones |
+| `/admin`, `/admin/sedes/:id`, `.../agenda`, `.../reportes`, `/admin/canchas/:id/horario` | Dueño de sede | Sedes, canchas, horario y precios, bloqueos, agenda, reportes |
+| `/admin/usuarios`, `/admin/reportes`, `/backend-rutas` | Super admin | Usuarios y roles, resumen de la plataforma, lista de endpoints |
+
+Reglas para no romper la conexión con el backend:
+
+- **Toda llamada pasa por `apiFetch`.** Si el token de acceso (15 min) venció, lo renueva una sola vez con el refresh token y repite la petición; si no puede, cierra la sesión.
+- **Fechas con zona:** se envían en ISO-8601 con `-05:00`. Un `<input type="datetime-local">` no trae zona: usar `withBogotaOffset`.
+- **Si cambia un DTO del backend**, actualizar su tipo en `api/types.ts` (y la lista de `pages/BackendRoutesPage.tsx` si cambia un endpoint).
 
 ---
 
