@@ -10,17 +10,20 @@ import org.springframework.test.web.servlet.ResultActions;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
+import java.util.Random;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 class PasswordResetIntegrationTest extends IntegrationTest {
 
-    private static final Pattern TOKEN = Pattern.compile("restablecer-contrasena\\?token=([A-Za-z0-9_-]+)");
+    private static final Random RANDOM = new Random();
+    private static final Pattern TOKEN =Pattern.compile("restablecer-contrasena\\?token=([A-Za-z0-9_-]+)");
 
     @Test
     void userResetsPasswordWithEmailedLink() throws Exception {
@@ -97,8 +100,36 @@ class PasswordResetIntegrationTest extends IntegrationTest {
         assertThat(mailSender.sentTo(email)).hasSize(3);
     }
 
+    @Test
+    void ipIsThrottledWhenRequestingLinksForManyEmails() throws Exception {
+        String ip = "10.0.3.1";
+        for (int i = 0; i < 10; i++) {
+            forgot(uniqueEmail(), ip).andExpect(status().isAccepted());
+        }
+
+        forgot(uniqueEmail(), ip)
+                .andExpect(status().isTooManyRequests())
+                .andExpect(header().exists("Retry-After"))
+                .andExpect(jsonPath("$.code").value("TOO_MANY_RESET_REQUESTS"));
+        // Otra IP no se ve afectada
+        forgot(uniqueEmail(), "10.0.3.2").andExpect(status().isAccepted());
+
+        // Pasada la hora se libera
+        clock.advance(Duration.ofMinutes(61));
+        forgot(uniqueEmail(), ip).andExpect(status().isAccepted());
+    }
+
+    /** Cada solicitud llega desde una IP distinta, para no chocar con el límite por IP entre tests. */
     private ResultActions forgot(String email) throws Exception {
+        return forgot(email, "10.9." + RANDOM.nextInt(256) + "." + RANDOM.nextInt(256));
+    }
+
+    private ResultActions forgot(String email, String ip) throws Exception {
         return mockMvc.perform(post("/api/v1/auth/password/forgot")
+                .with(request -> {
+                    request.setRemoteAddr(ip);
+                    return request;
+                })
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(json(Map.of("email", email))));
     }
