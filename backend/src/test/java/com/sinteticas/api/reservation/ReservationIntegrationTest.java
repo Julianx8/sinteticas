@@ -231,11 +231,11 @@ class ReservationIntegrationTest extends IntegrationTest {
         // Simulamos que falta 1 hora para el inicio (el límite es 2 horas)
         clock.setInstant(OffsetDateTime.parse(at(17)).toInstant());
 
-        mockMvc.perform(withToken(post("/api/v1/reservations/{id}/cancel", reservationId), customer))
+        mockMvc.perform(withToken(post("/api/v1/reservations/{id}/cancel", reservationId), loginAgain(customer)))
                 .andExpect(status().isUnprocessableEntity())
                 .andExpect(jsonPath("$.code").value("CANCELLATION_TOO_LATE"));
 
-        mockMvc.perform(withToken(post("/api/v1/reservations/{id}/cancel", reservationId), owner))
+        mockMvc.perform(withToken(post("/api/v1/reservations/{id}/cancel", reservationId), loginAgain(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("CANCELLED"));
     }
@@ -250,7 +250,7 @@ class ReservationIntegrationTest extends IntegrationTest {
 
         clock.setInstant(OffsetDateTime.parse(at(18)).toInstant().plus(Duration.ofMinutes(30)));
 
-        mockMvc.perform(withToken(post("/api/v1/reservations/{id}/no-show", reservationId), owner))
+        mockMvc.perform(withToken(post("/api/v1/reservations/{id}/no-show", reservationId), loginAgain(owner)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("NO_SHOW"));
     }

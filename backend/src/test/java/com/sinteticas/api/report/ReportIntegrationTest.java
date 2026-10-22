@@ -62,9 +62,10 @@ class ReportIntegrationTest extends IntegrationTest {
 
         // Ya pasó el día: la sede registra los resultados
         clock.setInstant(OffsetDateTime.parse(at(21)).toInstant());
-        mockMvc.perform(withToken(post("/api/v1/reservations/{id}/complete", completed), owner))
+        String ownerThatDay = loginAgain(owner);
+        mockMvc.perform(withToken(post("/api/v1/reservations/{id}/complete", completed), ownerThatDay))
                 .andExpect(status().isOk());
-        mockMvc.perform(withToken(post("/api/v1/reservations/{id}/no-show", noShow), owner))
+        mockMvc.perform(withToken(post("/api/v1/reservations/{id}/no-show", noShow), ownerThatDay))
                 .andExpect(status().isOk());
         clock.reset();
     }

@@ -2,6 +2,7 @@ package com.sinteticas.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.nimbusds.jwt.SignedJWT;
 import org.junit.jupiter.api.AfterEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -89,6 +90,15 @@ public abstract class IntegrationTest {
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         return readJson(body).get("accessToken").asText();
+    }
+
+    /**
+     * Vuelve a iniciar sesión con el mismo usuario del token. Hace falta después de mover {@link #clock}:
+     * el token de acceso vence según ese reloj, igual que en la vida real tras unas horas.
+     */
+    protected String loginAgain(String token) throws Exception {
+        String email = SignedJWT.parse(token).getJWTClaimsSet().getStringClaim("email");
+        return login(email, SUPER_ADMIN_EMAIL.equals(email) ? SUPER_ADMIN_PASSWORD : DEFAULT_PASSWORD);
     }
 
     protected String superAdminToken() throws Exception {
