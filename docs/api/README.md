@@ -48,7 +48,7 @@ El registro público siempre crea `CUSTOMER`. Para que un dueño de cancha sea `
 | POST | `/auth/login` | 🌐 | Iniciar sesión → tokens |
 | POST | `/auth/refresh` | 🌐 | Renovar tokens `{"refreshToken": "…"}` |
 | POST | `/auth/logout` | 🌐 | Cerrar la sesión de ese refresh token |
-| POST | `/auth/password/forgot` | 🌐 | Enviar enlace para restablecer contraseña `{"email": "…"}` (siempre 202) |
+| POST | `/auth/password/forgot` | 🌐 | Enviar enlace para restablecer contraseña `{"email": "…"}` (202; 429 si la IP pasó de 10 solicitudes en una hora) |
 | POST | `/auth/password/reset` | 🌐 | Contraseña nueva con el token del enlace `{"token": "…", "newPassword": "…"}` |
 | GET | `/users/me` | 🔒 | Mis datos |
 | PATCH | `/users/me` | 🔒 | Cambiar mi nombre |
@@ -187,7 +187,8 @@ El backend envía correos de texto en segundo plano (si el correo falla, la oper
 
 El frontend debe tener la página `/restablecer-contrasena`, que lee el `token` de la URL y llama a `/auth/password/reset`.
 `/auth/password/forgot` responde igual exista o no el email (para no revelar qué cuentas existen) y envía máximo
-3 correos por hora a la misma cuenta. Restablecer la contraseña cierra todas las sesiones.
+3 correos por hora a la misma cuenta. Desde una misma IP se aceptan 10 solicitudes por hora (para cualquier
+email); la siguiente recibe 429 `TOO_MANY_RESET_REQUESTS`. Restablecer la contraseña cierra todas las sesiones.
 
 En desarrollo los correos no salen a internet: llegan a **Mailpit**, en http://localhost:8025.
 
@@ -224,5 +225,5 @@ Los errores de validación incluyen además `errors` con el mensaje de cada camp
 | 403 | `FORBIDDEN`, `ACCOUNT_DISABLED`, `VENUE_NOT_OWNED`, `COURT_NOT_OWNED` |
 | 404 | `USER_NOT_FOUND`, `VENUE_NOT_FOUND`, `COURT_NOT_FOUND`, `BLOCK_NOT_FOUND`, `RESERVATION_NOT_FOUND` |
 | 409 | `EMAIL_ALREADY_REGISTERED`, `COURT_NAME_TAKEN`, `RESERVATION_SLOT_TAKEN`, `SLOT_BLOCKED`, `BLOCK_CONFLICTS_WITH_RESERVATIONS`, `DATA_CONFLICT` |
-| 429 | `TOO_MANY_LOGIN_ATTEMPTS` (con `Retry-After` y `retryAfterSeconds`) |
+| 429 | `TOO_MANY_LOGIN_ATTEMPTS`, `TOO_MANY_RESET_REQUESTS` (con `Retry-After` y `retryAfterSeconds`) |
 | 422 | `OUTSIDE_SCHEDULE`, `DURATION_TOO_LONG`, `CROSSES_MIDNIGHT`, `RESERVATION_IN_PAST`, `TOO_FAR_AHEAD`, `TOO_MANY_ACTIVE_RESERVATIONS`, `COURT_NOT_BOOKABLE`, `CANCELLATION_TOO_LATE`, `RESERVATION_ALREADY_STARTED`, `RESERVATION_NOT_ACTIVE`, `RESERVATION_NOT_STARTED`, `SCHEDULE_OVERLAP`, `CANNOT_REMOVE_OWN_SUPER_ADMIN`, `CANNOT_DISABLE_SELF` |

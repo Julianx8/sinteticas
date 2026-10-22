@@ -80,6 +80,8 @@ app:
     expiration: 1h
     # Solicitudes por email por hora; las demás se ignoran en silencio
     max-requests-per-hour: 3
+    # Solicitudes por IP por hora (cualquier email); al pasarlas responde 429
+    max-requests-per-ip-per-hour: 10
   holidays:
     # true = los festivos de Colombia usan el horario y los precios del domingo
     sunday-schedule: true

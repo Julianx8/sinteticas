@@ -64,9 +64,10 @@ public class AuthController {
     @PostMapping("/password/forgot")
     @ResponseStatus(HttpStatus.ACCEPTED)
     @Operation(summary = "Solicitar un enlace para restablecer la contraseña",
-            description = "Responde 202 siempre, exista o no el email (no revela qué cuentas existen)")
-    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request) {
-        passwordResetService.requestReset(request.email());
+            description = "Responde 202 exista o no el email (no revela qué cuentas existen). "
+                    + "Más de 10 solicitudes por hora desde la misma IP → 429 TOO_MANY_RESET_REQUESTS")
+    public void forgotPassword(@Valid @RequestBody ForgotPasswordRequest request, HttpServletRequest httpRequest) {
+        passwordResetService.requestReset(request.email(), httpRequest.getRemoteAddr());
     }
 
     @PostMapping("/password/reset")

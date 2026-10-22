@@ -2,6 +2,8 @@ package com.sinteticas.api.auth;
 
 import com.sinteticas.api.common.config.AppProperties;
 import com.sinteticas.api.common.error.ApiException;
+import com.sinteticas.api.common.error.RateLimitedException;
+import com.sinteticas.api.common.web.SlidingWindowCounter;
 import com.sinteticas.api.notification.MailService;
 import com.sinteticas.api.user.User;
 import com.sinteticas.api.user.UserRepository;
@@ -10,6 +12,7 @@ import jakarta.validation.constraints.NotNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +22,7 @@ import org.springframework.web.util.UriComponentsBuilder;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
+import java.util.concurrent.TimeUnit;
 
 /**
  * "Olvidé mi contraseña": envía un enlace de un solo uso que vence en 1 hora.
@@ -30,8 +34,14 @@ public class PasswordResetService {
 
     @Validated
     @ConfigurationProperties(prefix = "app.password-reset")
-    public record Properties(@NotNull Duration expiration, @Min(1) int maxRequestsPerHour) {
+    public record Properties(@NotNull Duration expiration, @Min(1) int maxRequestsPerHour,
+                             @Min(1) int maxRequestsPerIpPerHour) {
     }
+
+    private static final Duration IP_WINDOW = Duration.ofHours(1);
+
+    /** Solicitudes por IP: frena a quien pide enlaces para muchos emails distintos desde el mismo lugar. */
+    private final SlidingWindowCounter requestsByIp = new SlidingWindowCounter(IP_WINDOW);
 
     private final PasswordResetTokenRepository tokenRepository;
     private final UserRepository userRepository;
@@ -59,14 +69,23 @@ public class PasswordResetService {
     /**
      * Siempre termina sin error, exista o no el email: así nadie puede averiguar qué emails están registrados.
      * Solo se envía el correo si la cuenta existe, está activa y no superó el límite de solicitudes por hora.
+     * La IP sí recibe 429 al pasar su límite: eso no revela nada sobre ningún email.
      */
     @Transactional
-    public void requestReset(String email) {
+    public void requestReset(String email, String ip) {
+        Instant now = clock.instant();
+        requestsByIp.retryAfterIfAtLimit(ip, properties.maxRequestsPerIpPerHour(), now).ifPresent(retryAfter -> {
+            throw new RateLimitedException("TOO_MANY_RESET_REQUESTS",
+                    "Demasiadas solicitudes. Intenta de nuevo en "
+                            + SlidingWindowCounter.minutes(retryAfter) + " minuto(s)",
+                    retryAfter);
+        });
+        requestsByIp.record(ip, now);
+
         User user = userRepository.findByEmail(email.trim()).filter(User::isEnabled).orElse(null);
         if (user == null) {
             return;
         }
-        Instant now = clock.instant();
         if (tokenRepository.countCreatedSince(user.getId(), now.minus(Duration.ofHours(1)))
                 >= properties.maxRequestsPerHour()) {
             log.info("Límite de solicitudes de restablecimiento alcanzado para {}", user.getEmail());
@@ -103,6 +122,11 @@ public class PasswordResetService {
         user.setPasswordHash(passwordEncoder.encode(newPassword));
         resetToken.markUsed(now);
         refreshTokenService.revokeAllForUser(user.getId());
+    }
+
+    @Scheduled(fixedDelay = 10, timeUnit = TimeUnit.MINUTES)
+    public void evictExpiredIpCounters() {
+        requestsByIp.evictExpired(clock.instant());
     }
 
 }
