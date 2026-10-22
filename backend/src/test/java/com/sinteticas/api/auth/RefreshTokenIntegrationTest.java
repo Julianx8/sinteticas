@@ -11,6 +11,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -25,6 +26,23 @@ class RefreshTokenIntegrationTest extends IntegrationTest {
         assertThat(auth.get("expiresIn").asLong()).isEqualTo(15 * 60);
         assertThat(auth.get("refreshToken").asText()).hasSizeGreaterThan(40);
         assertThat(auth.get("refreshExpiresIn").asLong()).isEqualTo(14 * 24 * 3600);
+    }
+
+    @Test
+    void accessTokenExpiresAfter15MinutesAndRefreshGivesANewOne() throws Exception {
+        JsonNode auth = registerCustomer(uniqueEmail());
+        String accessToken = auth.get("accessToken").asText();
+
+        clock.advance(Duration.ofMinutes(14));
+        mockMvc.perform(withToken(get("/api/v1/users/me"), accessToken)).andExpect(status().isOk());
+
+        // 15 minutos + 1 de tolerancia por diferencias de reloj
+        clock.advance(Duration.ofMinutes(3));
+        mockMvc.perform(withToken(get("/api/v1/users/me"), accessToken)).andExpect(status().isUnauthorized());
+
+        String renewed = readJson(refresh(auth.get("refreshToken").asText()).andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString()).get("accessToken").asText();
+        mockMvc.perform(withToken(get("/api/v1/users/me"), renewed)).andExpect(status().isOk());
     }
 
     @Test

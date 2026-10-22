@@ -13,9 +13,11 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.oauth2.jose.jws.MacAlgorithm;
+import org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.JwtEncoder;
-import org.springframework.security.oauth2.jwt.JwtValidators;
+import org.springframework.security.oauth2.jwt.JwtIssuerValidator;
+import org.springframework.security.oauth2.jwt.JwtTimestampValidator;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtEncoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
@@ -27,6 +29,7 @@ import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
+import java.time.Clock;
 import java.util.List;
 
 /**
@@ -97,11 +100,15 @@ public class SecurityConfig implements WebMvcConfigurer {
     }
 
     @Bean
-    public JwtDecoder jwtDecoder(SecurityProperties properties) {
+    public JwtDecoder jwtDecoder(SecurityProperties properties, Clock clock) {
         NimbusJwtDecoder decoder = NimbusJwtDecoder.withSecretKey(secretKey(properties))
                 .macAlgorithm(MacAlgorithm.HS256)
                 .build();
-        decoder.setJwtValidator(JwtValidators.createDefaultWithIssuer(properties.security().jwt().issuer()));
+        // El vencimiento se valida con el mismo Clock con el que JwtService firma los tokens
+        JwtTimestampValidator timestampValidator = new JwtTimestampValidator();
+        timestampValidator.setClock(clock);
+        decoder.setJwtValidator(new DelegatingOAuth2TokenValidator<>(
+                timestampValidator, new JwtIssuerValidator(properties.security().jwt().issuer())));
         return decoder;
     }
 
