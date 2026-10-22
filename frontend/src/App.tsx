@@ -1,6 +1,6 @@
-import { createContext, useContext, useMemo, useState } from 'react'
+import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { BrowserRouter, Link, NavLink, Navigate, Route, Routes, useLocation, useNavigate, useParams } from 'react-router-dom'
-import { QueryClient, QueryClientProvider, useMutation, useQuery } from '@tanstack/react-query'
+import { QueryClient, QueryClientProvider, useMutation, useQueries, useQuery } from '@tanstack/react-query'
 
 type Role = 'CUSTOMER' | 'ADMIN' | 'SUPER_ADMIN'
 
@@ -17,7 +17,15 @@ type AuthResponse = {
   accessToken: string
   tokenType: string
   expiresIn: number
+  refreshToken: string
+  refreshExpiresIn: number
   user: User
+}
+
+type StoredSession = {
+  token: string | null
+  refreshToken: string | null
+  user: User | null
 }
 
 type PageResponse<T> = {
@@ -55,9 +63,9 @@ type ReservationStatus = 'CONFIRMED' | 'CANCELLED' | 'COMPLETED' | 'NO_SHOW'
 type AvailabilityStatus = 'AVAILABLE' | 'BOOKED' | 'BLOCKED' | 'PAST'
 
 type AvailabilitySlot = {
-  hour: string
-  start: string
-  end: string
+  hour: number
+  startAt: string
+  endAt: string
   price: number
   status: AvailabilityStatus
 }
@@ -65,7 +73,31 @@ type AvailabilitySlot = {
 type AvailabilityResponse = {
   date: string
   courtId: string
+  // Solo viene cuando la fecha es festivo
+  holidayName?: string
   slots: AvailabilitySlot[]
+}
+
+type ScheduleSlot = {
+  dayOfWeek: number
+  startHour: number
+  endHour: number
+  pricePerHour: number
+}
+
+type ReportMetrics = {
+  reservations: number
+  cancelled: number
+  realizedRevenue: number
+  projectedRevenue: number
+}
+
+type Block = {
+  id: string
+  courtId: string
+  startAt: string
+  endAt: string
+  reason: string
 }
 
 type Reservation = {
@@ -144,39 +176,60 @@ function App() {
   )
 }
 
-function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [token, setToken] = useState<string | null>(() => {
-    if (typeof window === 'undefined') return null
-    const raw = window.localStorage.getItem(AUTH_STORAGE_KEY)
-    if (!raw) return null
-    try {
-      const parsed = JSON.parse(raw) as { token: string | null }
-      return parsed.token ?? null
-    } catch {
-      return null
-    }
-  })
+const EMPTY_SESSION: StoredSession = { token: null, refreshToken: null, user: null }
+// Avisa al AuthProvider cuando apiFetch renueva o pierde la sesión
+const SESSION_EVENT = 'sinteticas-session'
 
-  const [user, setUser] = useState<User | null>(() => {
-    if (typeof window === 'undefined') return null
+function readSession(): StoredSession {
+  if (typeof window === 'undefined') return EMPTY_SESSION
+  try {
     const raw = window.localStorage.getItem(AUTH_STORAGE_KEY)
-    if (!raw) return null
-    try {
-      const parsed = JSON.parse(raw) as { user: User | null }
-      return parsed.user ?? null
-    } catch {
-      return null
+    if (!raw) return EMPTY_SESSION
+    const parsed = JSON.parse(raw) as Partial<StoredSession>
+    return { token: parsed.token ?? null, refreshToken: parsed.refreshToken ?? null, user: parsed.user ?? null }
+  } catch {
+    return EMPTY_SESSION
+  }
+}
+
+function writeSession(session: StoredSession | null) {
+  try {
+    if (session) {
+      window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
+    } else {
+      window.localStorage.removeItem(AUTH_STORAGE_KEY)
     }
-  })
+  } catch {
+    // Sin almacenamiento la sesión dura solo mientras la pestaña esté abierta
+  }
+  window.dispatchEvent(new Event(SESSION_EVENT))
+}
+
+function sessionFrom(response: AuthResponse): StoredSession {
+  return { token: response.accessToken, refreshToken: response.refreshToken, user: response.user }
+}
+
+function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [session, setSession] = useState<StoredSession>(readSession)
+  const { token, user } = session
+
+  useEffect(() => {
+    const sync = () => setSession(readSession())
+    window.addEventListener(SESSION_EVENT, sync)
+    // Otra pestaña inició o cerró sesión
+    window.addEventListener('storage', sync)
+    return () => {
+      window.removeEventListener(SESSION_EVENT, sync)
+      window.removeEventListener('storage', sync)
+    }
+  }, [])
 
   const login = async (values: AuthFormValues) => {
     const response = await apiFetch<AuthResponse>('/api/v1/auth/login', {
       method: 'POST',
       body: { email: values.email, password: values.password },
     })
-    setToken(response.accessToken)
-    setUser(response.user)
-    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: response.accessToken, user: response.user }))
+    writeSession(sessionFrom(response))
   }
 
   const register = async (values: AuthFormValues) => {
@@ -188,15 +241,17 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         password: values.password,
       },
     })
-    setToken(response.accessToken)
-    setUser(response.user)
-    window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify({ token: response.accessToken, user: response.user }))
+    writeSession(sessionFrom(response))
   }
 
   const logout = () => {
-    setToken(null)
-    setUser(null)
-    window.localStorage.removeItem(AUTH_STORAGE_KEY)
+    const { refreshToken } = readSession()
+    if (refreshToken) {
+      // Revoca la sesión en el backend; si falla, igual se cierra en este navegador
+      apiFetch('/api/v1/auth/logout', { method: 'POST', body: { refreshToken } }).catch(() => undefined)
+    }
+    writeSession(null)
+    queryClient.clear()
   }
 
   const value = useMemo(
@@ -588,7 +643,9 @@ function CourtAvailabilityCard({ court, selectedDate }: { court: Court; selected
     mutationFn: (payload: { courtId: string; startAt: string; durationHours: number; notes?: string }) =>
       apiFetch<Reservation>('/api/v1/reservations', { method: 'POST', body: payload }, token ?? undefined),
     onSuccess: () => {
+      setSelectedSlotStart(null)
       queryClient.invalidateQueries({ queryKey: ['reservations'] })
+      queryClient.invalidateQueries({ queryKey: ['availability', court.id] })
     },
   })
 
@@ -617,6 +674,10 @@ function CourtAvailabilityCard({ court, selectedDate }: { court: Court; selected
       {isLoading && <div className="status-box sub-box">Consultando disponibilidad...</div>}
       {isError && <div className="status-box error sub-box">{formatError(error)}</div>}
 
+      {data?.holidayName && (
+        <div className="status-box sub-box">Festivo: {data.holidayName}. Rige el horario del domingo.</div>
+      )}
+
       {!isLoading && !isError && data && (
         <div className="availability-list">
           {availableSlots.length === 0 ? (
@@ -624,15 +685,15 @@ function CourtAvailabilityCard({ court, selectedDate }: { court: Court; selected
           ) : (
             availableSlots.map((slot) => (
               <button
-                key={`${slot.start}-${slot.end}`}
+                key={slot.startAt}
                 type="button"
-                className={`time-chip ${selectedSlotStart === slot.start ? 'selected' : ''}`}
+                className={`time-chip ${selectedSlotStart === slot.startAt ? 'selected' : ''}`}
                 onClick={() => {
-                  setSelectedSlotStart(slot.start)
+                  setSelectedSlotStart(slot.startAt)
                   setDurationHours(1)
                 }}
               >
-                {slot.start.slice(11, 16)} - {slot.end.slice(11, 16)} · {formatPrice(slot.price)}
+                {formatHour(slot.hour)} - {formatHour(slot.hour + 1)} · {formatPrice(slot.price)}
               </button>
             ))
           )}
@@ -692,14 +753,15 @@ function SuperAdminRoute({ children }: { children: React.ReactNode }) {
 
 function BackendRoutesPage() {
   const routeGroups = [
-    { title: 'Autenticación', access: 'Público', items: ['POST /api/v1/auth/register', 'POST /api/v1/auth/login'] },
-    { title: 'Usuarios', access: 'Autenticado', items: ['GET /api/v1/users/me', 'PATCH /api/v1/users/me', 'PUT /api/v1/users/me/password'] },
+    { title: 'Autenticación', access: 'Público', items: ['POST /api/v1/auth/register', 'POST /api/v1/auth/login', 'POST /api/v1/auth/refresh', 'POST /api/v1/auth/logout', 'POST /api/v1/auth/password/forgot', 'POST /api/v1/auth/password/reset'] },
+    { title: 'Usuarios', access: 'Autenticado', items: ['GET /api/v1/users/me', 'PATCH /api/v1/users/me', 'PUT /api/v1/users/me/password', 'DELETE /api/v1/users/me/sessions'] },
     { title: 'Sedes', access: 'Público + admin', items: ['GET /api/v1/venues', 'GET /api/v1/venues/{id}', 'POST /api/v1/venues', 'PUT /api/v1/venues/{venueId}', 'GET /api/v1/venues/mine'] },
     { title: 'Canchas', access: 'Público + admin', items: ['GET /api/v1/venues/{venueId}/courts', 'GET /api/v1/courts/{courtId}', 'POST /api/v1/venues/{venueId}/courts', 'PUT /api/v1/courts/{courtId}'] },
     { title: 'Reservas', access: 'Autenticado + admin', items: ['GET /api/v1/courts/{courtId}/availability', 'POST /api/v1/reservations', 'GET /api/v1/reservations/mine', 'GET /api/v1/reservations/{reservationId}', 'POST /api/v1/reservations/{reservationId}/cancel', 'POST /api/v1/reservations/{reservationId}/complete', 'POST /api/v1/reservations/{reservationId}/no-show', 'GET /api/v1/venues/{venueId}/reservations'] },
     { title: 'Horarios y bloqueos', access: 'Admin', items: ['GET /api/v1/courts/{courtId}/schedules', 'PUT /api/v1/courts/{courtId}/schedules', 'GET /api/v1/courts/{courtId}/blocks', 'POST /api/v1/courts/{courtId}/blocks', 'DELETE /api/v1/courts/{courtId}/blocks/{blockId}'] },
     { title: 'Reportes', access: 'Admin / Super admin', items: ['GET /api/v1/venues/{venueId}/reports/summary', 'GET /api/v1/venues/{venueId}/reports/daily', 'GET /api/v1/venues/{venueId}/reports/demand', 'GET /api/v1/admin/reports/summary'] },
     { title: 'Administración de usuarios', access: 'Super admin', items: ['GET /api/v1/admin/users', 'GET /api/v1/admin/users/{userId}', 'GET /api/v1/admin/users/{userId}/venues', 'PUT /api/v1/admin/users/{userId}/roles', 'PUT /api/v1/admin/users/{userId}/status'] },
+    { title: 'Festivos', access: 'Público', items: ['GET /api/v1/holidays?year={año}'] },
     { title: 'Salud del sistema', access: 'Público', items: ['GET /api/v1/health'] },
   ]
 
@@ -837,19 +899,23 @@ function CourtSchedulePage() {
 
   const schedulesQuery = useQuery({
     queryKey: ['court-schedules', courtId],
-    queryFn: () => apiFetch<Array<Record<string, unknown>>>(`/api/v1/courts/${courtId ?? ''}/schedules`, undefined, token ?? undefined),
+    queryFn: () => apiFetch<ScheduleSlot[]>(`/api/v1/courts/${courtId ?? ''}/schedules`, undefined, token ?? undefined),
     enabled: Boolean(courtId),
   })
 
   const blocksQuery = useQuery({
     queryKey: ['court-blocks', courtId, from, to],
-    queryFn: () => apiFetch<Array<Record<string, unknown>>>(`/api/v1/courts/${courtId ?? ''}/blocks?from=${from}&to=${to}`, undefined, token ?? undefined),
+    queryFn: () => apiFetch<Block[]>(`/api/v1/courts/${courtId ?? ''}/blocks?from=${from}&to=${to}`, undefined, token ?? undefined),
     enabled: Boolean(courtId) && Boolean(token),
   })
 
   const [form, setForm] = useState({ startAt: '', endAt: '', reason: 'Bloqueo programado' })
   const mutation = useMutation({
-    mutationFn: () => apiFetch<Record<string, unknown>>(`/api/v1/courts/${courtId ?? ''}/blocks`, { method: 'POST', body: form }, token ?? undefined),
+    // El input datetime-local no trae zona; el backend exige una (hora de Colombia)
+    mutationFn: () => apiFetch<Block>(`/api/v1/courts/${courtId ?? ''}/blocks`, {
+      method: 'POST',
+      body: { startAt: withBogotaOffset(form.startAt), endAt: withBogotaOffset(form.endAt), reason: form.reason },
+    }, token ?? undefined),
     onSuccess: () => {
       setForm({ startAt: '', endAt: '', reason: 'Bloqueo programado' })
       queryClient.invalidateQueries({ queryKey: ['court-blocks'] })
@@ -876,9 +942,9 @@ function CourtSchedulePage() {
           {schedulesQuery.isLoading ? <div className="status-box">Cargando horario...</div> : null}
           {schedulesQuery.data && (
             <ul className="route-list">
-              {schedulesQuery.data.map((slot, index) => (
-                <li key={`${String(slot.dayOfWeek ?? index)}-${String(slot.startTime ?? 'slot')}`}>
-                  {String(slot.dayOfWeek ?? index)} · {String(slot.startTime ?? 'N/A')} a {String(slot.endTime ?? 'N/A')} · ${String(slot.price ?? '')}
+              {schedulesQuery.data.length === 0 ? <li>La cancha aún no tiene horario.</li> : schedulesQuery.data.map((slot) => (
+                <li key={`${slot.dayOfWeek}-${slot.startHour}`}>
+                  {DAY_NAMES[slot.dayOfWeek] ?? slot.dayOfWeek} · {formatHour(slot.startHour)} a {formatHour(slot.endHour)} · {formatPrice(slot.pricePerHour)}/hora
                 </li>
               ))}
             </ul>
@@ -923,8 +989,8 @@ function CourtSchedulePage() {
         {blocksQuery.data && (
           <ul className="route-list">
             {blocksQuery.data.length === 0 ? <li>No hay bloqueos para este rango.</li> : blocksQuery.data.map((block) => (
-              <li key={String(block.id ?? 'block')}>
-                {String(block.reason ?? 'Bloqueo')} · {String(block.startAt ?? '')} → {String(block.endAt ?? '')}
+              <li key={block.id}>
+                {block.reason} · {formatDateTime(block.startAt)} → {formatDateTime(block.endAt)}
               </li>
             ))}
           </ul>
@@ -944,15 +1010,17 @@ function VenueReportsPage() {
   })
   const [to, setTo] = useState(() => getTodayIso())
 
-  if (!user || !hasAnyRole(user, 'ADMIN', 'SUPER_ADMIN')) {
-    return <div className="status-box error">Necesitas permisos de administrador para ver reportes.</div>
-  }
-
+  const canSee = hasAnyRole(user, 'ADMIN', 'SUPER_ADMIN')
+  // Los hooks van antes de cualquier return: React exige el mismo orden en cada render
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['venue-reports', venueId, from, to],
     queryFn: () => apiFetch<Record<string, unknown>>(`/api/v1/venues/${venueId ?? ''}/reports/summary?from=${from}&to=${to}`, undefined, token ?? undefined),
-    enabled: Boolean(venueId),
+    enabled: Boolean(venueId) && canSee,
   })
+
+  if (!canSee) {
+    return <div className="status-box error">Necesitas permisos de administrador para ver reportes.</div>
+  }
 
   return (
     <section className="content-panel routes-page">
@@ -999,14 +1067,16 @@ function PlatformReportsPage() {
   })
   const [to, setTo] = useState(() => getTodayIso())
 
-  if (!user || !hasAnyRole(user, 'SUPER_ADMIN')) {
-    return <div className="status-box error">Solo el super administrador puede ver este resumen global.</div>
-  }
-
+  const canSee = hasAnyRole(user, 'SUPER_ADMIN')
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ['platform-reports', from, to],
     queryFn: () => apiFetch<Record<string, unknown>>(`/api/v1/admin/reports/summary?from=${from}&to=${to}`, undefined, token ?? undefined),
+    enabled: canSee,
   })
+
+  if (!canSee) {
+    return <div className="status-box error">Solo el super administrador puede ver este resumen global.</div>
+  }
 
   return (
     <section className="content-panel routes-page">
@@ -1048,10 +1118,7 @@ function AdminUsersPage() {
   const { token, user } = useContext(AuthContext)
   const [query, setQuery] = useState('')
   const [roleFilter, setRoleFilter] = useState<'ALL' | Role>('ALL')
-
-  if (!user || !hasAnyRole(user, 'SUPER_ADMIN')) {
-    return <div className="status-box error">Solo el super administrador puede administrar usuarios.</div>
-  }
+  const canSee = hasAnyRole(user, 'SUPER_ADMIN')
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ['admin-users', query, roleFilter],
@@ -1061,6 +1128,7 @@ function AdminUsersPage() {
       if (roleFilter !== 'ALL') params.set('role', roleFilter)
       return apiFetch<PageResponse<User>>(`/api/v1/admin/users?${params.toString()}`, undefined, token ?? undefined)
     },
+    enabled: canSee,
   })
 
   const users = data?.content ?? []
@@ -1076,6 +1144,10 @@ function AdminUsersPage() {
       apiFetch<User>(`/api/v1/admin/users/${userId}/roles`, { method: 'PUT', body: { roles } }, token ?? undefined),
     onSuccess: () => refetch(),
   })
+
+  if (!canSee) {
+    return <div className="status-box error">Solo el super administrador puede administrar usuarios.</div>
+  }
 
   return (
     <section className="content-panel routes-page">
@@ -1271,19 +1343,41 @@ function ProfilePage() {
 
 function AdminDashboardPage() {
   const { token, user } = useContext(AuthContext)
-
-  if (!user || !hasAnyRole(user, 'ADMIN', 'SUPER_ADMIN')) {
-    return <div className="status-box error">No tienes permisos suficientes para acceder al panel de administración.</div>
-  }
+  const canSee = hasAnyRole(user, 'ADMIN', 'SUPER_ADMIN')
 
   const venuesQuery = useQuery({
     queryKey: ['my-venues-admin'],
     queryFn: () => apiFetch<PageResponse<Venue>>('/api/v1/venues/mine', undefined, token ?? undefined),
+    enabled: canSee,
   })
 
   const venues = venuesQuery.data?.content ?? []
   const activeVenues = venues.filter((venue) => venue.active).length
-  const estimatedRevenue = venues.length * 2100000
+
+  // Cifras reales del día: el reporte de resumen de cada sede, sumado
+  const today = getTodayIso()
+  const todayReports = useQueries({
+    queries: venues.map((venue) => ({
+      queryKey: ['venue-reports', venue.id, today, today],
+      queryFn: () => apiFetch<{ totals: ReportMetrics }>(`/api/v1/venues/${venue.id}/reports/summary?from=${today}&to=${today}`, undefined, token ?? undefined),
+      enabled: canSee,
+    })),
+  })
+  const todayTotals = todayReports.reduce(
+    (sum, report) => {
+      const totals = report.data?.totals
+      if (!totals) return sum
+      return {
+        reservations: sum.reservations + totals.reservations - totals.cancelled,
+        revenue: sum.revenue + Number(totals.realizedRevenue) + Number(totals.projectedRevenue),
+      }
+    },
+    { reservations: 0, revenue: 0 },
+  )
+
+  if (!canSee) {
+    return <div className="status-box error">No tienes permisos suficientes para acceder al panel de administración.</div>
+  }
 
   return (
     <section className="admin-dashboard-shell">
@@ -1305,13 +1399,13 @@ function AdminDashboardPage() {
         </div>
         <div className="summary-tile">
           <span>Reservas hoy</span>
-          <strong>48</strong>
-          <small>12 últimas horas</small>
+          <strong>{todayTotals.reservations}</strong>
+          <small>sin contar canceladas</small>
         </div>
         <div className="summary-tile">
-          <span>Ingreso estimado</span>
-          <strong>{formatPrice(estimatedRevenue)}</strong>
-          <small>proyección del día</small>
+          <span>Ingreso del día</span>
+          <strong>{formatPrice(todayTotals.revenue)}</strong>
+          <small>completadas + confirmadas</small>
         </div>
       </div>
 
@@ -1471,11 +1565,12 @@ function CourtForm({ venues, token }: { venues: Venue[]; token?: string }) {
   const [status, setStatus] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  useState(() => {
+  // Las sedes llegan después del primer render: se elige la primera cuando aparezcan
+  useEffect(() => {
     if (venues.length > 0 && !selectedVenueId) {
       setSelectedVenueId(venues[0].id)
     }
-  })
+  }, [venues, selectedVenueId])
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -1662,7 +1757,51 @@ type ApiRequestOptions = Omit<RequestInit, 'body'> & {
   body?: BodyInit | Record<string, unknown> | unknown[] | null
 }
 
+// Varias peticiones pueden recibir 401 a la vez: todas esperan la misma renovación,
+// porque el backend rota el refresh token y reutilizar uno ya usado cierra la sesión.
+let refreshInFlight: Promise<string | null> | null = null
+
+function refreshAccessToken(): Promise<string | null> {
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const { refreshToken } = readSession()
+      if (!refreshToken) return null
+      try {
+        const response = await request<AuthResponse>('/api/v1/auth/refresh', { method: 'POST', body: { refreshToken } })
+        writeSession(sessionFrom(response))
+        return response.accessToken
+      } catch {
+        writeSession(null)
+        return null
+      }
+    })().finally(() => {
+      refreshInFlight = null
+    })
+  }
+  return refreshInFlight
+}
+
+class ApiError extends Error {
+  constructor(message: string, readonly status: number, readonly code?: string) {
+    super(message)
+  }
+}
+
+/** Llama a la API; si el token de acceso venció (15 min), lo renueva una vez y repite la petición. */
 async function apiFetch<T>(path: string, options: ApiRequestOptions = {}, token?: string): Promise<T> {
+  // Se usa el token más reciente: el que recibe el componente puede haberse renovado mientras tanto
+  const currentToken = token ? readSession().token ?? token : undefined
+  try {
+    return await request<T>(path, options, currentToken)
+  } catch (error) {
+    if (!currentToken || !(error instanceof ApiError) || error.status !== 401) throw error
+    const renewed = await refreshAccessToken()
+    if (!renewed) throw new ApiError('Tu sesión expiró. Inicia sesión de nuevo.', 401, 'SESSION_EXPIRED')
+    return request<T>(path, options, renewed)
+  }
+}
+
+async function request<T>(path: string, options: ApiRequestOptions = {}, token?: string): Promise<T> {
   const { body, ...requestOptions } = options
   const headers = new Headers(requestOptions.headers ?? {})
   const requestInit: RequestInit = { ...requestOptions, headers }
@@ -1694,8 +1833,10 @@ async function apiFetch<T>(path: string, options: ApiRequestOptions = {}, token?
 
   if (!response.ok) {
     const errorPayload = payload as ErrorPayload | null
-    const errorMessage = errorPayload?.code ? `${errorPayload.code}: ${errorPayload.detail ?? 'Error del servidor'}` : 'Error al consultar la API'
-    throw new Error(errorMessage)
+    const fieldErrors = errorPayload?.errors ? Object.entries(errorPayload.errors).map(([field, message]) => `${field}: ${message}`).join('; ') : ''
+    const detail = [errorPayload?.detail, fieldErrors].filter(Boolean).join(' — ') || 'Error del servidor'
+    const errorMessage = errorPayload?.code ? `${errorPayload.code}: ${detail}` : `Error al consultar la API (${response.status})`
+    throw new ApiError(errorMessage, response.status, errorPayload?.code)
   }
 
   return payload as T
@@ -1720,6 +1861,19 @@ function formatDateTime(value: string): string {
     dateStyle: 'medium',
     timeStyle: 'short',
   }).format(new Date(value))
+}
+
+const DAY_NAMES: Record<number, string> = {
+  1: 'Lunes', 2: 'Martes', 3: 'Miércoles', 4: 'Jueves', 5: 'Viernes', 6: 'Sábado', 7: 'Domingo',
+}
+
+function formatHour(hour: number): string {
+  return `${String(hour).padStart(2, '0')}:00`
+}
+
+/** "2026-12-24T10:00" (input datetime-local) → "2026-12-24T10:00:00-05:00". Colombia no tiene horario de verano. */
+function withBogotaOffset(localDateTime: string): string {
+  return localDateTime.length === 16 ? `${localDateTime}:00-05:00` : `${localDateTime}-05:00`
 }
 
 function getTodayIso() {

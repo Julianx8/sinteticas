@@ -89,7 +89,7 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "${PWD}/backend:
 ```
 sinteticas/
 │
-├── docker-compose.yml     # orquesta los 3 contenedores
+├── docker-compose.yml     # orquesta los contenedores (postgres, backend, mailpit, frontend)
 ├── .env.example           # plantilla de variables (SÍ se sube a Git)
 ├── .env                   # valores reales (NUNCA se sube)
 │
@@ -142,6 +142,15 @@ Documentación:
 - [docs/api/README.md](docs/api/README.md): endpoints, roles, reglas de reserva y códigos de error (o Swagger en http://localhost:8080/swagger-ui.html)
 - [docs/base-datos/modelo.md](docs/base-datos/modelo.md): diagrama entidad-relación y restricciones
 - [docs/decisiones/](docs/decisiones/): decisiones de arquitectura (JWT, reservas sin solapamiento, zona horaria)
+
+### Cómo habla el frontend con el backend
+
+Toda llamada a la API pasa por `apiFetch` en `frontend/src/App.tsx`:
+
+- **Sesión:** se guarda en `localStorage` (`sinteticas-auth`) con `token`, `refreshToken` y `user`.
+- **Token vencido:** el token de acceso dura 15 minutos. Si una petición recibe 401, `apiFetch` llama una sola vez a `/auth/refresh`, guarda el par nuevo y repite la petición. Si la renovación falla, cierra la sesión.
+- **Fechas:** se envían en ISO-8601 con zona (`2026-10-28T19:00:00-05:00`). Un `<input type="datetime-local">` no trae zona, así que hay que pasarlo por `withBogotaOffset`.
+- **Nombres de campos:** los toma de los DTO del backend (`startAt`/`endAt`, `startHour`/`endHour`/`pricePerHour`…). Si cambia un DTO, hay que actualizar el tipo correspondiente en `App.tsx`.
 
 ---
 
