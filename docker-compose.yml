@@ -36,6 +36,8 @@ services:
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
       APP_FRONTEND_URL: ${APP_FRONTEND_URL:-http://localhost:5173}
+      # Solicitudes de "olvidé mi contraseña" por IP y por hora (subirlo si se corren muchas veces las pruebas e2e)
+      PASSWORD_RESET_MAX_PER_IP: ${PASSWORD_RESET_MAX_PER_IP:-10}
       # En desarrollo los correos van a Mailpit (ver http://localhost:8025)
       MAIL_HOST: ${MAIL_HOST:-mailpit}
       MAIL_PORT: ${MAIL_PORT:-1025}
