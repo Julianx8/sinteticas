@@ -4,6 +4,7 @@ import com.sinteticas.api.auth.AuthenticatedUser;
 import com.sinteticas.api.common.web.PageResponse;
 import com.sinteticas.api.common.web.Pageables;
 import com.sinteticas.api.reservation.dto.AvailabilityResponse;
+import com.sinteticas.api.reservation.dto.VenueAvailabilityResponse;
 import com.sinteticas.api.reservation.dto.CancelReservationRequest;
 import com.sinteticas.api.reservation.dto.CreateReservationRequest;
 import com.sinteticas.api.reservation.dto.ReservationResponse;
@@ -55,6 +56,16 @@ public class ReservationController {
                                              @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
                                              @AuthenticationPrincipal Jwt jwt) {
         return availabilityService.forDay(courtId, date, AuthenticatedUser.fromNullable(jwt));
+    }
+
+    @GetMapping("/venues/{venueId}/availability")
+    @Operation(summary = "Horas disponibles de todas las canchas activas de una sede en un día (público)",
+            description = "Lo mismo que /courts/{id}/availability para cada cancha, en una sola petición, "
+                    + "con cuántas horas libres le quedan a cada una")
+    public VenueAvailabilityResponse venueAvailability(@PathVariable UUID venueId,
+                                                       @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                                                       @AuthenticationPrincipal Jwt jwt) {
+        return availabilityService.forVenueDay(venueId, date, AuthenticatedUser.fromNullable(jwt));
     }
 
     @PostMapping("/reservations")

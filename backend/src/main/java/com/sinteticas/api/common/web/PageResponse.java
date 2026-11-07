@@ -16,6 +16,11 @@ public record PageResponse<T>(
         int totalPages
 ) {
 
+    /** Con el contenido ya convertido (por ejemplo, en lote), en el mismo orden de la página. */
+    public static <T> PageResponse<T> of(Page<?> page, List<T> content) {
+        return new PageResponse<>(content, page.getNumber(), page.getSize(), page.getTotalElements(), page.getTotalPages());
+    }
+
     public static <E, T> PageResponse<T> of(Page<E> page, Function<E, T> mapper) {
         return new PageResponse<>(
                 page.getContent().stream().map(mapper).toList(),

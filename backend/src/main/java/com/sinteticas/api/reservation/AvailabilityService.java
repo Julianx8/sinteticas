@@ -9,6 +9,8 @@ import com.sinteticas.api.holiday.HolidayCalendar;
 import com.sinteticas.api.reservation.dto.AvailabilityResponse;
 import com.sinteticas.api.reservation.dto.AvailabilityResponse.Slot;
 import com.sinteticas.api.reservation.dto.AvailabilityResponse.SlotStatus;
+import com.sinteticas.api.reservation.dto.VenueAvailabilityResponse;
+import com.sinteticas.api.reservation.dto.VenueAvailabilityResponse.CourtAvailability;
 import com.sinteticas.api.schedule.BlockService;
 import com.sinteticas.api.schedule.ScheduleBlock;
 import com.sinteticas.api.schedule.ScheduleService;
@@ -74,6 +76,21 @@ public class AvailabilityService {
                     statusOf(slotStart, slotEnd, now, reservations, blocks)));
         }
         return new AvailabilityResponse(court.getId(), date, holidayCalendar.holidayName(date).orElse(null), slots);
+    }
+
+    /** Todas las canchas activas de la sede ese día (las inactivas no se pueden reservar, así que no salen). */
+    @Transactional(readOnly = true)
+    public VenueAvailabilityResponse forVenueDay(UUID venueId, LocalDate date, Optional<AuthenticatedUser> viewer) {
+        List<CourtAvailability> courts = new ArrayList<>();
+        for (Court court : courtService.listForVenue(venueId, viewer)) {
+            if (!court.isBookable()) {
+                continue;
+            }
+            List<Slot> slots = forDay(court.getId(), date, viewer).slots();
+            int free = (int) slots.stream().filter(slot -> slot.status() == SlotStatus.AVAILABLE).count();
+            courts.add(new CourtAvailability(court.getId(), court.getName(), court.getCourtType(), free, slots));
+        }
+        return new VenueAvailabilityResponse(venueId, date, holidayCalendar.holidayName(date).orElse(null), courts);
     }
 
     private static SlotStatus statusOf(Instant start, Instant end, Instant now,

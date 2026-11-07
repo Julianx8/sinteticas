@@ -70,6 +70,8 @@ El registro público siempre crea `CUSTOMER`. Para que un dueño de cancha sea `
 | Método | Ruta | | Descripción |
 | --- | --- | --- | --- |
 | GET | `/venues?q=&neighborhood=&courtType=` | 🌐 | Catálogo de sedes activas (paginado) |
+| GET | `/venues?date=&hour=` | 🌐 | Solo sedes con alguna cancha libre ese día de `hour` a `hour+1` (se combina con los demás filtros) |
+| GET | `/venues/{id}/availability?date=` | 🌐 | Horas de **todas** las canchas activas de la sede en una petición, con `availableHours` por cancha |
 | GET | `/venues/mine` | 🏟️ | Mis sedes (incluye inactivas) |
 | GET | `/venues/{id}` | 🌐 | Detalle de sede |
 | POST | `/venues` | 🏟️ | Crear sede (quien la crea es el dueño) |
@@ -80,6 +82,8 @@ El registro público siempre crea `CUSTOMER`. Para que un dueño de cancha sea `
 | PUT | `/courts/{id}` | 🏟️ | Actualizar cancha |
 
 Tipos de cancha: `FUTBOL_5`, `FUTBOL_6`, `FUTBOL_7`, `FUTBOL_8`, `FUTBOL_11`.
+
+Cada sede trae además `courtTypes` (tipos de sus canchas activas) y `minPricePerHour` (precio por hora más bajo de sus horarios; se omite si no tiene horarios). La búsqueda por disponibilidad exige `date` y `hour` juntos (`INVALID_SEARCH`), `hour` de 0 a 23 (`INVALID_HOUR`), una hora futura (`RESERVATION_IN_PAST`) y máximo 30 días adelante (`TOO_FAR_AHEAD`).
 
 ### Horarios y bloqueos
 
