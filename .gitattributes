@@ -5,6 +5,8 @@
 # (con CRLF, "./mvnw" falla en el docker build con "/bin/sh^M: bad interpreter")
 mvnw text eol=lf
 *.sh text eol=lf
+Caddyfile text eol=lf
+Dockerfile* text eol=lf
 
 # Scripts de Windows: siempre CRLF
 *.cmd text eol=crlf

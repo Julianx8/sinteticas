@@ -1,0 +1,35 @@
+# Perfil de producción (SPRING_PROFILES_ACTIVE=prod, lo activa docker-compose.prod.yml).
+# Solo cambia lo que difiere de application.yml.
+
+server:
+  # El backend queda detrás de Caddy: la IP del visitante llega en X-Forwarded-For.
+  # Sin esto getRemoteAddr() sería la IP de Caddy y los límites por IP (login y "olvidé mi contraseña")
+  # contarían a todos los usuarios como uno solo. Tomcat solo confía en esa cabecera si la petición
+  # viene de una red interna (la red de Docker), así que nadie puede falsificarla desde internet.
+  forward-headers-strategy: native
+  shutdown: graceful
+
+spring:
+  jpa:
+    properties:
+      hibernate:
+        format_sql: false
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+
+# Swagger solo en desarrollo (en producción Caddy tampoco lo expone: solo reenvía /api/*)
+springdoc:
+  api-docs:
+    enabled: false
+  swagger-ui:
+    enabled: false
+
+management:
+  endpoint:
+    health:
+      show-details: never
+
+logging:
+  level:
+    root: INFO
+    com.sinteticas.api: INFO
