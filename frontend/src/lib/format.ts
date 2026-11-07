@@ -100,3 +100,8 @@ export function formatCountdown(targetIso: string, now = Date.now()): string {
   const days = Math.round(hours / 24)
   return days === 1 ? 'en 1 día' : `en ${days} días`
 }
+
+/** Hora actual en Colombia (0-23), sin importar la zona del navegador. */
+export function currentHourInBogota(): number {
+  return Number(new Intl.DateTimeFormat('en-US', { hour: 'numeric', hourCycle: 'h23', timeZone: TIME_ZONE }).format(new Date()))
+}

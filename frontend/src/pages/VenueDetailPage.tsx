@@ -1,8 +1,8 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { apiFetch, queryClient } from '../api/client'
-import type { AvailabilityResponse, AvailabilitySlot, Court, Reservation, Venue } from '../api/types'
+import type { AvailabilitySlot, Court, Reservation, Venue, VenueAvailabilityResponse } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
 import { CalendarPlusIcon, CheckCircleIcon, MapPinIcon, ShareIcon } from '../components/icons'
 import { ErrorBox, QueryState, Sheet, usePageTitle } from '../components/ui'
@@ -31,7 +31,10 @@ type Selection = { start: number; end: number }
 export function VenueDetailPage() {
   const { venueId = '' } = useParams()
   const today = todayIso()
-  const [selectedDate, setSelectedDate] = useState(today)
+  // El buscador del inicio llega con ?fecha=2026-11-08&hora=19: se abre ese día con esa hora elegida
+  const [searchParams] = useSearchParams()
+  const wanted = useMemo(() => parseWanted(searchParams, today), [searchParams, today])
+  const [selectedDate, setSelectedDate] = useState(wanted?.date ?? today)
   const [courtId, setCourtId] = useState<string | null>(null)
 
   const venueQuery = useQuery({
@@ -42,11 +45,23 @@ export function VenueDetailPage() {
     queryKey: ['courts', venueId],
     queryFn: () => apiFetch<Court[]>(`/api/v1/venues/${venueId}/courts`),
   })
+  // Todas las canchas del día en una sola petición
+  const availabilityQuery = useQuery({
+    queryKey: ['availability', 'venue', venueId, selectedDate],
+    queryFn: () => apiFetch<VenueAvailabilityResponse>(`/api/v1/venues/${venueId}/availability?date=${selectedDate}`),
+    placeholderData: (previous) => (previous?.date === selectedDate ? previous : undefined),
+  })
   usePageTitle(venueQuery.data?.name)
 
   const venue = venueQuery.data
-  const courts = (courtsQuery.data ?? []).filter((court) => court.active)
-  const court = courts.find((candidate) => candidate.id === courtId) ?? courts[0]
+  const dayCourts = availabilityQuery.data?.courts ?? []
+  const wantedHour = wanted && wanted.date === selectedDate ? wanted.hour : null
+  // Con hora pedida, se abre la primera cancha que la tenga libre
+  const preferred = wantedHour !== null
+    ? dayCourts.find((candidate) => candidate.slots.some((slot) => slot.hour === wantedHour && slot.status === 'AVAILABLE'))
+    : undefined
+  const dayCourt = dayCourts.find((candidate) => candidate.courtId === courtId) ?? preferred ?? dayCourts[0]
+  const court = (courtsQuery.data ?? []).find((candidate) => candidate.id === dayCourt?.courtId)
 
   if (!venue) {
     return <QueryState isLoading={venueQuery.isLoading} error={venueQuery.error} loading="Cargando sede..." onRetry={() => venueQuery.refetch()} />
@@ -76,34 +91,48 @@ export function VenueDetailPage() {
         <DayStrip today={today} selected={selectedDate} onSelect={setSelectedDate} />
 
         <QueryState
-          isLoading={courtsQuery.isLoading}
-          error={courtsQuery.error}
-          isEmpty={courts.length === 0}
-          loading="Cargando canchas..."
+          isLoading={availabilityQuery.isLoading || courtsQuery.isLoading}
+          error={availabilityQuery.error ?? courtsQuery.error}
+          isEmpty={dayCourts.length === 0}
+          loading="Consultando horas libres..."
           empty="Esta sede todavía no tiene canchas disponibles."
-          onRetry={() => courtsQuery.refetch()}
+          onRetry={() => { availabilityQuery.refetch(); courtsQuery.refetch() }}
         />
 
-        {courts.length > 1 && (
+        {dayCourts.length > 1 && (
           <div className="court-tabs" role="tablist" aria-label="Canchas">
-            {courts.map((candidate) => (
+            {dayCourts.map((candidate) => (
               <button
-                key={candidate.id}
+                key={candidate.courtId}
                 type="button"
                 role="tab"
-                aria-selected={candidate.id === court?.id}
-                className={candidate.id === court?.id ? 'active' : ''}
-                onClick={() => setCourtId(candidate.id)}
+                aria-selected={candidate.courtId === dayCourt?.courtId}
+                className={candidate.courtId === dayCourt?.courtId ? 'active' : ''}
+                onClick={() => setCourtId(candidate.courtId)}
               >
                 <strong>{candidate.name}</strong>
                 <small>{courtTypeLabel(candidate.courtType)}</small>
+                <small className={candidate.availableHours === 0 ? 'tab-full' : 'tab-free'}>
+                  {candidate.availableHours === 0 ? 'Sin horas libres' : `${candidate.availableHours} h libres`}
+                </small>
               </button>
             ))}
           </div>
         )}
 
         {/* key: al cambiar de cancha o de día empieza una selección nueva */}
-        {court && <CourtBooking key={`${court.id}-${selectedDate}`} venue={venue} court={court} date={selectedDate} />}
+        {court && dayCourt && (
+          <CourtBooking
+            key={`${court.id}-${selectedDate}`}
+            venue={venue}
+            court={court}
+            date={selectedDate}
+            slots={dayCourt.slots}
+            holidayName={availabilityQuery.data?.holidayName}
+            initialHour={dayCourt === preferred ? wantedHour : null}
+            refetch={async () => (await availabilityQuery.refetch()).data?.courts.find((c) => c.courtId === court.id)?.slots ?? []}
+          />
+        )}
       </div>
     </section>
   )
@@ -146,17 +175,23 @@ function DayStrip({ today, selected, onSelect }: { today: string; selected: stri
   )
 }
 
-function CourtBooking({ venue, court, date }: { venue: Venue; court: Court; date: string }) {
+function CourtBooking({ venue, court, date, slots, holidayName, initialHour, refetch }: {
+  venue: Venue
+  court: Court
+  date: string
+  slots: AvailabilitySlot[]
+  holidayName?: string
+  /** Hora que pidió el buscador del inicio (ya viene elegida) */
+  initialHour: number | null
+  refetch: () => Promise<AvailabilitySlot[]>
+}) {
   const { isAuthenticated } = useAuth()
-  const [selection, setSelection] = useState<Selection | null>(null)
+  const [selection, setSelection] = useState<Selection | null>(
+    initialHour !== null ? { start: initialHour, end: initialHour + 1 } : null,
+  )
   const [showPast, setShowPast] = useState(false)
   const [reviewOpen, setReviewOpen] = useState(false)
 
-  const availabilityQuery = useQuery({
-    queryKey: ['availability', court.id, date],
-    queryFn: () => apiFetch<AvailabilityResponse>(`/api/v1/courts/${court.id}/availability?date=${date}`),
-  })
-  const slots = availabilityQuery.data?.slots ?? []
   const slotAt = (hour: number) => slots.find((slot) => slot.hour === hour)
   const isFree = (hour: number) => slotAt(hour)?.status === 'AVAILABLE'
 
@@ -194,18 +229,11 @@ function CourtBooking({ venue, court, date }: { venue: Venue; court: Court; date
         </div>
       </div>
 
-      {availabilityQuery.data?.holidayName && (
-        <div className="status-box sub-box">Festivo: {availabilityQuery.data.holidayName}. Rige el horario y el precio del domingo.</div>
+      {holidayName && (
+        <div className="status-box sub-box">Festivo: {holidayName}. Rige el horario y el precio del domingo.</div>
       )}
 
-      <QueryState
-        isLoading={availabilityQuery.isLoading}
-        error={availabilityQuery.error}
-        isEmpty={slots.length === 0}
-        loading="Consultando horas libres..."
-        empty="La cancha no abre este día."
-        onRetry={() => availabilityQuery.refetch()}
-      />
+      {slots.length === 0 && <div className="status-box">La cancha no abre este día.</div>}
 
       {slots.length > 0 && (
         <>
@@ -281,7 +309,7 @@ function CourtBooking({ venue, court, date }: { venue: Venue; court: Court; date
           onBooked={() => setSelection(null)}
           onSuggest={(next) => setSelection(next)}
           slots={slots}
-          refetch={async () => (await availabilityQuery.refetch()).data?.slots ?? []}
+          refetch={refetch}
         />
       )}
     </div>
@@ -314,7 +342,7 @@ function ReviewSheet({ open, onClose, venue, court, date, chosen, onBooked, onSu
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['reservations'] })
-      queryClient.invalidateQueries({ queryKey: ['availability', court.id] })
+      queryClient.invalidateQueries({ queryKey: ['availability'] })
     },
     onError: async (error) => {
       // Alguien reservó o la sede bloqueó: se recargan las horas y se sugiere la más cercana con la misma duración
@@ -427,4 +455,13 @@ function nearestFree(slots: AvailabilitySlot[], hour: number, duration: number):
     .filter((start) => Array.from({ length: duration }, (_, offset) => start + offset).every((candidate) => free.has(candidate)))
     .sort((a, b) => Math.abs(a - hour) - Math.abs(b - hour) || a - b)
   return starts.length ? { start: starts[0], end: starts[0] + duration } : null
+}
+
+/** Lee ?fecha=AAAA-MM-DD&hora=H del buscador; ignora valores fuera de rango. */
+function parseWanted(params: URLSearchParams, today: string): { date: string; hour: number } | null {
+  const date = params.get('fecha')
+  const hour = Number(params.get('hora'))
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date) || !Number.isInteger(hour) || hour < 0 || hour > 23) return null
+  if (date < today || date > addDays(today, MAX_DAYS_AHEAD)) return null
+  return { date, hour }
 }
