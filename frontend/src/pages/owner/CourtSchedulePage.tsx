@@ -49,7 +49,7 @@ function WeeklyScheduleEditor({ courtId }: { courtId: string }) {
     mutationFn: () => apiFetch<ScheduleSlot[]>(`/api/v1/courts/${courtId}/schedules`, { method: 'PUT', body: { slots: sorted(slots) } }),
     onSuccess: (saved) => {
       queryClient.setQueryData(['court-schedule', courtId], saved)
-      queryClient.invalidateQueries({ queryKey: ['availability', courtId] })
+      queryClient.invalidateQueries({ queryKey: ['availability'] })
     },
   })
 
@@ -163,7 +163,7 @@ function BlocksSection({ courtId }: { courtId: string }) {
   })
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ['court-blocks', courtId] })
-    queryClient.invalidateQueries({ queryKey: ['availability', courtId] })
+    queryClient.invalidateQueries({ queryKey: ['availability'] })
   }
 
   const createMutation = useMutation({

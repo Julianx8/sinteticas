@@ -6,8 +6,11 @@ import com.sinteticas.api.common.web.Pageables;
 import com.sinteticas.api.user.dto.UpdateRolesRequest;
 import com.sinteticas.api.user.dto.UpdateStatusRequest;
 import com.sinteticas.api.user.dto.UserResponse;
+import com.sinteticas.api.venue.Venue;
+import com.sinteticas.api.venue.VenueCatalog;
 import com.sinteticas.api.venue.VenueService;
 import com.sinteticas.api.venue.dto.VenueResponse;
+import org.springframework.data.domain.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -39,10 +42,12 @@ public class AdminUserController {
 
     private final UserService userService;
     private final VenueService venueService;
+    private final VenueCatalog venueCatalog;
 
-    public AdminUserController(UserService userService, VenueService venueService) {
+    public AdminUserController(UserService userService, VenueService venueService, VenueCatalog venueCatalog) {
         this.userService = userService;
         this.venueService = venueService;
+        this.venueCatalog = venueCatalog;
     }
 
     @GetMapping
@@ -67,7 +72,8 @@ public class AdminUserController {
                                               @ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         userService.getById(userId);
         Pageable safePageable = Pageables.restrict(pageable, VENUE_SORTABLE_FIELDS);
-        return PageResponse.of(venueService.listOwnedBy(userId, safePageable), VenueResponse::from);
+        Page<Venue> page = venueService.listOwnedBy(userId, safePageable);
+        return PageResponse.of(page, venueCatalog.toResponses(page.getContent()));
     }
 
     @PutMapping("/{userId}/roles")

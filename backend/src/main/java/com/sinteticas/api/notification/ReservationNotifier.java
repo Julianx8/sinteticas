@@ -17,6 +17,7 @@ import java.util.UUID;
  * <ul>
  *   <li>Reserva creada → confirmación al cliente + aviso a la sede.</li>
  *   <li>Cancelada por el cliente → aviso a la sede. Cancelada por la sede → aviso al cliente.</li>
+ *   <li>Falta poco para el partido → recordatorio al cliente ({@code ReservationReminderService}).</li>
  * </ul>
  */
 @Component
@@ -71,6 +72,19 @@ public class ReservationNotifier {
                             + reason
                             + "\n— Sintéticas"));
         }
+    }
+
+    @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
+    public void onReminderDue(ReservationEvents.ReminderDue event) {
+        ReservationResponse r = event.reservation();
+        mailService.send(r.customer().email(),
+                "Recordatorio: tu partido es a las " + EmailFormat.time(r.startAt()) + " en " + r.court().venueName(),
+                "Hola " + r.customer().fullName() + ",\n\n"
+                        + "Te recordamos que tienes un partido pronto.\n\n"
+                        + details(r)
+                        + "\nCómo llegar: " + EmailFormat.mapsUrl(r.court().venueAddress()) + "\n"
+                        + "\nEl pago se hace en la sede. Si no puedes ir, avísale a la sede lo antes posible.\n\n"
+                        + "— Sintéticas");
     }
 
     private static String details(ReservationResponse r) {

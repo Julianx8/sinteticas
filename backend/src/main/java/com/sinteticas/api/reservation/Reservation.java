@@ -61,6 +61,10 @@ public class Reservation extends AuditableEntity {
     @Column(name = "cancellation_reason")
     private String cancellationReason;
 
+    /** Cuándo se envió el recordatorio por correo (null = pendiente). */
+    @Column(name = "reminder_sent_at")
+    private Instant reminderSentAt;
+
     protected Reservation() {
     }
 
@@ -93,6 +97,15 @@ public class Reservation extends AuditableEntity {
                     "Solo se puede registrar el resultado cuando la reserva ya empezó");
         }
         this.status = outcome;
+    }
+
+    /** Marca el recordatorio como enviado (o como innecesario, si se reservó a última hora). */
+    public void markReminderSent(Instant now) {
+        this.reminderSentAt = now;
+    }
+
+    public Instant getReminderSentAt() {
+        return reminderSentAt;
     }
 
     public boolean hasStarted(Instant now) {

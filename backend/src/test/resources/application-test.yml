@@ -1,4 +1,7 @@
 app:
+  reservations:
+    # Los tests llaman al envío de recordatorios directamente, con el reloj de prueba
+    reminders-scheduled: false
   security:
     jwt:
       secret: test-secret-solo-para-tests-0123456789abcdef

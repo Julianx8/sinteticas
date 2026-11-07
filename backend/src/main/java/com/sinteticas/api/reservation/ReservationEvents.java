@@ -16,6 +16,10 @@ public final class ReservationEvents {
     public record Created(ReservationResponse reservation, UUID venueOwnerId) {
     }
 
+    /** Falta poco para el partido: se le recuerda al cliente. */
+    public record ReminderDue(ReservationResponse reservation) {
+    }
+
     /** {@code byVenue} = la canceló la sede (si no, el cliente). */
     public record Cancelled(ReservationResponse reservation, UUID venueOwnerId, boolean byVenue) {
     }

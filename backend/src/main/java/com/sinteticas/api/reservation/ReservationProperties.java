@@ -17,6 +17,8 @@ public record ReservationProperties(
         @Min(1) @Max(24) int maxHours,
         @Min(1) int maxDaysAhead,
         @NotNull Duration customerCancellationNotice,
-        @Min(1) int maxActivePerCustomer
+        @Min(1) int maxActivePerCustomer,
+        /** Cuánto antes del partido se envía el recordatorio por correo. */
+        @NotNull Duration reminderBefore
 ) {
 }

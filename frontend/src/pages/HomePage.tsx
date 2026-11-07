@@ -6,7 +6,10 @@ import { COURT_TYPES, type CourtType, type Holiday, type PageResponse, type Rese
 import { useAuth } from '../auth/AuthContext'
 import { MapPinIcon, ShareIcon } from '../components/icons'
 import { QueryState, usePageTitle } from '../components/ui'
-import { courtTypeLabel, formatCountdown, formatDate, formatDateTime, formatTime, todayIso } from '../lib/format'
+import {
+  DAY_SHORT, addDays, courtTypeLabel, currentHourInBogota, formatCountdown, formatDate, formatDateTime, formatHour, formatLongDate,
+  formatPrice, formatTime, isoDayOfWeek, todayIso,
+} from '../lib/format'
 import { mapsUrl, whatsappUrl } from '../lib/share'
 
 const PAGE_SIZE = 12
@@ -17,12 +20,20 @@ export function HomePage() {
   const [search, setSearch] = useState('')
   const [courtType, setCourtType] = useState<CourtType | ''>('')
   const [page, setPage] = useState(0)
+  // "¿Cuándo quieres jugar?": con día y hora, solo salen sedes con alguna cancha libre a esa hora
+  const [when, setWhen] = useState<When | null>(null)
 
   const venuesQuery = useQuery({
-    queryKey: ['venues', search, courtType, page],
-    queryFn: () => apiFetch<PageResponse<Venue>>(`/api/v1/venues${query({ q: search.trim(), courtType, page, size: PAGE_SIZE })}`),
+    queryKey: ['venues', search, courtType, page, when?.date, when?.hour],
+    queryFn: () => apiFetch<PageResponse<Venue>>(`/api/v1/venues${query({
+      q: search.trim(), courtType, page, size: PAGE_SIZE, date: when?.date, hour: when?.hour,
+    })}`),
     placeholderData: (previous) => previous,
   })
+  const changeWhen = (next: When | null) => {
+    setWhen(next)
+    setPage(0)
+  }
 
   const venues = venuesQuery.data?.content ?? []
   const totalPages = venuesQuery.data?.totalPages ?? 0
@@ -57,7 +68,7 @@ export function HomePage() {
           <div className="mini-stat">
             <span>Sedes</span>
             <strong>{venuesQuery.data?.totalElements ?? '—'}</strong>
-            <small>{search || courtType ? 'con este filtro' : 'disponibles para reservar'}</small>
+            <small>{search || courtType || when ? 'con este filtro' : 'disponibles para reservar'}</small>
           </div>
         </div>
       </section>
@@ -70,6 +81,8 @@ export function HomePage() {
               <h2>Sedes</h2>
             </div>
           </div>
+
+          <WhenPicker value={when} onChange={changeWhen} />
 
           <div className="search-row compact filter-row">
             <input
@@ -97,10 +110,24 @@ export function HomePage() {
           <QueryState
             isLoading={venuesQuery.isLoading}
             error={venuesQuery.error}
-            isEmpty={venues.length === 0}
+            isEmpty={venues.length === 0 && !when}
             loading="Cargando sedes..."
             empty="No encontramos sedes con ese filtro."
+            onRetry={() => venuesQuery.refetch()}
           />
+          {/* Sin resultados para esa hora: se ofrecen las horas vecinas en vez de un "no hay" seco */}
+          {when && !venuesQuery.isLoading && !venuesQuery.error && venues.length === 0 && (
+            <div className="status-box empty-suggest">
+              <p>No hay canchas libres el {formatLongDate(when.date)} a las {formatHour(when.hour)}{courtType ? ` (${courtTypeLabel(courtType)})` : ''}.</p>
+              <div className="chip-row">
+                {[when.hour - 1, when.hour + 1, when.hour + 2].filter((hour) => hourOptions(when.date).includes(hour)).map((hour) => (
+                  <button key={hour} type="button" className="filter-chip" onClick={() => changeWhen({ ...when, hour })}>
+                    Probar a las {formatHour(hour)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="card-grid dashboard-cards">
             {venues.map((venue) => (
@@ -108,11 +135,23 @@ export function HomePage() {
                 <h3>{venue.name}</h3>
                 <p className="location-line">{venue.address}</p>
                 <p className="muted">{venue.neighborhood || 'Sin barrio'}</p>
+                {venue.courtTypes.length > 0 && (
+                  <p className="venue-types">{venue.courtTypes.map(courtTypeLabel).join(' · ')}</p>
+                )}
+                {venue.minPricePerHour !== undefined && (
+                  <p className="venue-price">Desde <strong>{formatPrice(venue.minPricePerHour)}</strong> por hora</p>
+                )}
                 {venue.description && <p className="description">{venue.description}</p>}
                 <div className="venue-footer">
-                  <Link to={`/venues/${venue.id}`} className="primary action-link">
-                    Ver horarios
-                  </Link>
+                  {when ? (
+                    <Link to={`/venues/${venue.id}?fecha=${when.date}&hora=${when.hour}`} className="primary action-link">
+                      Reservar a las {formatHour(when.hour)}
+                    </Link>
+                  ) : (
+                    <Link to={`/venues/${venue.id}`} className="primary action-link">
+                      Ver horarios
+                    </Link>
+                  )}
                 </div>
               </article>
             ))}
@@ -138,6 +177,67 @@ export function HomePage() {
           )}
         </aside>
       </section>
+    </div>
+  )
+}
+
+type When = { date: string; hour: number }
+
+/** Horas que tiene sentido buscar: de 6 a 22, y si es hoy, solo las que aún no empiezan. */
+function hourOptions(date: string): number[] {
+  const from = date === todayIso() ? Math.max(6, currentHourInBogota() + 1) : 6
+  return Array.from({ length: Math.max(0, 23 - from) }, (_, index) => from + index)
+}
+
+/** Hoy, mañana y el próximo fin de semana: los días en que más se juega. */
+function dayOptions(): { date: string; label: string }[] {
+  const today = todayIso()
+  const days = [{ date: today, label: 'Hoy' }, { date: addDays(today, 1), label: 'Mañana' }]
+  for (let offset = 2; offset <= 7; offset++) {
+    const date = addDays(today, offset)
+    const dayOfWeek = isoDayOfWeek(date)
+    if (dayOfWeek === 6 || dayOfWeek === 7) days.push({ date, label: `${DAY_SHORT[dayOfWeek]} ${Number(date.slice(8))}` })
+  }
+  return days.filter((day) => hourOptions(day.date).length > 0)
+}
+
+function WhenPicker({ value, onChange }: { value: When | null; onChange: (value: When | null) => void }) {
+  const days = dayOptions()
+  const pickDay = (date: string) => {
+    const hours = hourOptions(date)
+    // Conserva la hora elegida si sirve ese día; si no, la noche (19:00) o la primera disponible
+    const hour = value && hours.includes(value.hour) ? value.hour : hours.includes(19) ? 19 : hours[0]
+    onChange({ date, hour })
+  }
+
+  return (
+    <div className="when-picker">
+      <p className="label" id="when-label">¿Cuándo quieres jugar?</p>
+      <div className="chip-row" role="group" aria-labelledby="when-label">
+        <button type="button" className={`filter-chip ${value ? '' : 'selected'}`} aria-pressed={!value} onClick={() => onChange(null)}>
+          Cualquier día
+        </button>
+        {days.map((day) => (
+          <button
+            key={day.date}
+            type="button"
+            className={`filter-chip ${value?.date === day.date ? 'selected' : ''}`}
+            aria-pressed={value?.date === day.date}
+            onClick={() => pickDay(day.date)}
+          >
+            {day.label}
+          </button>
+        ))}
+      </div>
+      {value && (
+        <label className="when-hour">
+          Hora
+          <select value={value.hour} onChange={(event) => onChange({ ...value, hour: Number(event.target.value) })}>
+            {hourOptions(value.date).map((hour) => <option key={hour} value={hour}>{formatHour(hour)}</option>)}
+          </select>
+          <span className="muted">Solo sedes con cancha libre {formatLongDate(value.date)} de {formatHour(value.hour)} a {formatHour(value.hour + 1)}</span>
+        </label>
+      )}
     </div>
   )
 }

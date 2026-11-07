@@ -39,6 +39,10 @@ export type Venue = {
   description: string | null
   active: boolean
   createdAt: string
+  /** Tipos de sus canchas activas, ordenados */
+  courtTypes: CourtType[]
+  /** Precio por hora más bajo de sus horarios; no viene si ninguna cancha tiene horario */
+  minPricePerHour?: number
 }
 
 export type VenueInput = {
@@ -88,6 +92,20 @@ export type AvailabilityResponse = {
   // Solo viene cuando la fecha es festivo
   holidayName?: string
   slots: AvailabilitySlot[]
+}
+
+/** GET /venues/{id}/availability: todas las canchas activas de la sede en un día */
+export type VenueAvailabilityResponse = {
+  venueId: string
+  date: string
+  holidayName?: string
+  courts: {
+    courtId: string
+    name: string
+    courtType: CourtType
+    availableHours: number
+    slots: AvailabilitySlot[]
+  }[]
 }
 
 /** dayOfWeek: 1 = lunes … 7 = domingo. endHour es exclusiva (24 = medianoche). */

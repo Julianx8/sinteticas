@@ -1,6 +1,7 @@
 package com.sinteticas.api.venue;
 
 import com.sinteticas.api.auth.AuthenticatedUser;
+import com.sinteticas.api.common.error.ApiException;
 import com.sinteticas.api.common.web.PageResponse;
 import com.sinteticas.api.common.web.Pageables;
 import com.sinteticas.api.court.CourtType;
@@ -10,8 +11,10 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -26,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
 import java.util.Set;
 import java.util.UUID;
 
@@ -37,21 +41,33 @@ public class VenueController {
     private static final Set<String> SORTABLE_FIELDS = Set.of("name", "neighborhood", "createdAt");
 
     private final VenueService venueService;
+    private final VenueCatalog catalog;
 
-    public VenueController(VenueService venueService) {
+    public VenueController(VenueService venueService, VenueCatalog catalog) {
         this.venueService = venueService;
+        this.catalog = catalog;
     }
 
     @GetMapping
     @Operation(summary = "Catálogo público de sedes activas",
-            description = "Filtros opcionales: texto (nombre o dirección), barrio y tipo de cancha disponible")
+            description = "Filtros opcionales: texto (nombre o dirección), barrio y tipo de cancha disponible. "
+                    + "Con date y hour juntos, solo sedes con alguna cancha libre ese día de hour a hour+1 "
+                    + "(hora de Colombia). Cada sede trae los tipos de cancha y el precio por hora más bajo.")
     public PageResponse<VenueResponse> search(@RequestParam(required = false) String q,
                                               @RequestParam(required = false) String neighborhood,
                                               @RequestParam(required = false) CourtType courtType,
+                                              @RequestParam(required = false)
+                                              @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+                                              @RequestParam(required = false) Integer hour,
                                               @ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         Pageable safePageable = Pageables.restrict(pageable, SORTABLE_FIELDS);
-        return PageResponse.of(venueService.searchActive(q, neighborhood, courtType, safePageable),
-                VenueResponse::from);
+        if ((date == null) != (hour == null)) {
+            throw ApiException.badRequest("INVALID_SEARCH", "Para buscar por disponibilidad se envían date y hour juntos");
+        }
+        Page<Venue> page = date == null
+                ? venueService.searchActive(q, neighborhood, courtType, safePageable)
+                : venueService.searchActiveFreeAt(q, neighborhood, courtType, date, hour, safePageable);
+        return PageResponse.of(page, catalog.toResponses(page.getContent()));
     }
 
     @GetMapping("/mine")
@@ -60,13 +76,14 @@ public class VenueController {
     public PageResponse<VenueResponse> mine(AuthenticatedUser currentUser,
                                             @ParameterObject @PageableDefault(size = 20, sort = "name") Pageable pageable) {
         Pageable safePageable = Pageables.restrict(pageable, SORTABLE_FIELDS);
-        return PageResponse.of(venueService.listOwnedBy(currentUser.id(), safePageable), VenueResponse::from);
+        Page<Venue> page = venueService.listOwnedBy(currentUser.id(), safePageable);
+        return PageResponse.of(page, catalog.toResponses(page.getContent()));
     }
 
     @GetMapping("/{venueId}")
     @Operation(summary = "Detalle de una sede")
     public VenueResponse get(@PathVariable UUID venueId, @AuthenticationPrincipal Jwt jwt) {
-        return VenueResponse.from(venueService.getVisible(venueId, AuthenticatedUser.fromNullable(jwt)));
+        return catalog.toResponse(venueService.getVisible(venueId, AuthenticatedUser.fromNullable(jwt)));
     }
 
     @PostMapping
@@ -74,7 +91,7 @@ public class VenueController {
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPER_ADMIN')")
     @Operation(summary = "Crear una sede (el usuario autenticado queda como dueño)")
     public VenueResponse create(AuthenticatedUser currentUser, @Valid @RequestBody VenueRequest request) {
-        return VenueResponse.from(venueService.create(currentUser, request));
+        return catalog.toResponse(venueService.create(currentUser, request));
     }
 
     @PutMapping("/{venueId}")
@@ -82,7 +99,7 @@ public class VenueController {
     @Operation(summary = "Actualizar una sede (dueño o SUPER_ADMIN). Enviar active=false para desactivarla")
     public VenueResponse update(AuthenticatedUser currentUser, @PathVariable UUID venueId,
                                 @Valid @RequestBody VenueRequest request) {
-        return VenueResponse.from(venueService.update(currentUser, venueId, request));
+        return catalog.toResponse(venueService.update(currentUser, venueId, request));
     }
 
 }

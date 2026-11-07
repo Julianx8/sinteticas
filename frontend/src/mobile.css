@@ -743,3 +743,90 @@ dialog.sheet::backdrop {
     flex: 1;
   }
 }
+
+/* =====================================================================
+   Fase B · buscador por fecha y hora, resumen de sedes, horas libres por cancha
+   ===================================================================== */
+
+.when-picker {
+  margin-bottom: 0.75rem;
+  padding: 0.85rem 0.9rem 0.4rem;
+  border-radius: 16px;
+  background: var(--green-soft);
+}
+
+.when-picker .label {
+  margin: 0 0 0.4rem;
+  font-weight: 700;
+  color: #23654e;
+}
+
+.when-hour {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.when-hour select {
+  min-height: 40px;
+  padding: 0.4rem 0.6rem;
+  border-radius: 10px;
+  border: 1px solid rgba(98, 113, 100, 0.25);
+  background: white;
+  font: inherit;
+}
+
+.when-hour .muted {
+  flex: 1 1 100%;
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.venue-types {
+  margin: 0.35rem 0 0;
+  font-size: 0.85rem;
+  color: #23654e;
+  font-weight: 600;
+}
+
+.venue-price {
+  margin: 0.2rem 0 0;
+  color: var(--muted);
+}
+
+.venue-price strong {
+  color: var(--ink);
+}
+
+.court-tabs .tab-free {
+  color: #23654e;
+  font-weight: 600;
+}
+
+.court-tabs .tab-full {
+  color: #9d4d43;
+}
+
+.empty-suggest p {
+  margin: 0 0 0.5rem;
+}
+
+/* Las filas de chips se desplazan de lado: la columna no debe estirarse a su ancho */
+.dashboard-layout {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 861px) {
+  .dashboard-layout {
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 0.8fr);
+  }
+}
+
+.left-column,
+.right-column {
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+}
