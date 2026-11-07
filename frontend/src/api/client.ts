@@ -8,8 +8,15 @@ export const SESSION_EVENT = 'sinteticas-session'
 
 export const queryClient = new QueryClient({
   defaultOptions: {
-    // Un 401/403/404 no se arregla reintentando
-    queries: { retry: (failureCount, error) => !(error instanceof ApiError && error.status < 500) && failureCount < 2 },
+    queries: {
+      // Un 401/403/404 no se arregla reintentando; sin conexión tampoco vale la pena insistir
+      retry: (failureCount, error) =>
+        !(error instanceof ApiError && (error.status < 500 || error.code === 'NETWORK_ERROR')) && failureCount < 2,
+      // 'always': sin conexión la petición falla con NETWORK_ERROR (y se muestran los datos guardados)
+      // en vez de quedarse en pausa sin mostrar nada
+      networkMode: 'always',
+    },
+    mutations: { networkMode: 'always' },
   },
 })
 
@@ -41,6 +48,7 @@ export function writeSession(session: StoredSession | null) {
       window.localStorage.setItem(AUTH_STORAGE_KEY, JSON.stringify(session))
     } else {
       window.localStorage.removeItem(AUTH_STORAGE_KEY)
+      clearOfflineCopies()
     }
   } catch {
     // Sin almacenamiento la sesión dura solo mientras la pestaña esté abierta
@@ -50,6 +58,58 @@ export function writeSession(session: StoredSession | null) {
 
 export function sessionFrom(response: AuthResponse): StoredSession {
   return { token: response.accessToken, refreshToken: response.refreshToken, user: response.user }
+}
+
+// ---------- Copias para ver sin conexión ----------
+// Solo de datos propios (mis reservas). Se guardan por usuario y se borran al cerrar sesión,
+// para que en un celular compartido nadie vea las reservas de otra persona.
+
+const OFFLINE_PREFIX = 'sinteticas-offline:'
+
+export type OfflineCopy<T> = { savedAt: string; data: T }
+
+export function saveOfflineCopy<T>(key: string, data: T) {
+  const userId = readSession().user?.id
+  if (!userId) return
+  try {
+    window.localStorage.setItem(`${OFFLINE_PREFIX}${userId}:${key}`, JSON.stringify({ savedAt: new Date().toISOString(), data }))
+  } catch {
+    // Sin espacio o sin almacenamiento: simplemente no hay copia
+  }
+}
+
+export function readOfflineCopy<T>(key: string): OfflineCopy<T> | null {
+  const userId = readSession().user?.id
+  if (!userId) return null
+  try {
+    const raw = window.localStorage.getItem(`${OFFLINE_PREFIX}${userId}:${key}`)
+    return raw ? (JSON.parse(raw) as OfflineCopy<T>) : null
+  } catch {
+    return null
+  }
+}
+
+function clearOfflineCopies() {
+  for (let index = window.localStorage.length - 1; index >= 0; index--) {
+    const key = window.localStorage.key(index)
+    if (key?.startsWith(OFFLINE_PREFIX)) window.localStorage.removeItem(key)
+  }
+}
+
+/**
+ * Pide datos propios y guarda una copia; si no hay conexión devuelve la última copia guardada
+ * (marcada con `offlineSavedAt` para que la página lo avise).
+ */
+export async function fetchWithOfflineCopy<T extends object>(path: string, key: string): Promise<T & { offlineSavedAt?: string }> {
+  try {
+    const data = await apiFetch<T>(path)
+    saveOfflineCopy(key, data)
+    return data
+  } catch (error) {
+    const copy = error instanceof ApiError && error.code === 'NETWORK_ERROR' ? readOfflineCopy<T>(key) : null
+    if (copy) return { ...copy.data, offlineSavedAt: copy.savedAt }
+    throw error
+  }
 }
 
 // ---------- Errores ----------
@@ -128,11 +188,17 @@ async function request<T>(path: string, options: RequestOptions, token: string |
   if (token) headers.set('Authorization', `Bearer ${token}`)
   if (options.body !== undefined) headers.set('Content-Type', 'application/json')
 
-  const response = await fetch(`${API_BASE}${path}`, {
-    method: options.method ?? 'GET',
-    headers,
-    body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
-  })
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      method: options.method ?? 'GET',
+      headers,
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+    })
+  } catch {
+    // fetch solo lanza cuando no llega al servidor (sin internet, servidor apagado, CORS)
+    throw new ApiError('No hay conexión con el servidor. Revisa tu internet.', 0, 'NETWORK_ERROR')
+  }
 
   const text = await response.text()
   let payload: unknown = null

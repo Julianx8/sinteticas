@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test'
-import { tomorrowInBogota } from '../api'
+import { api, loginToken, tomorrowInBogota } from '../api'
 import { data } from '../data'
-import { failOnPageErrors, loginByForm } from './helpers'
+import { failOnPageErrors, loginByForm, pickDay, slot } from './helpers'
 
 test.beforeEach(async ({ page }) => {
   await loginByForm(page, data.ownerEmail)
@@ -44,16 +44,17 @@ test('bloquear un horario lo quita de la disponibilidad, y al borrar el bloqueo 
   await expect(page.locator('.mini-item', { hasText: 'Bloqueo de prueba' })).toBeVisible()
 
   await page.goto(`/venues/${data.venueId}`)
-  await page.fill('#select-date', day)
-  await expect(page.locator('.time-chip', { hasText: '08:00' }).first()).toBeDisabled()
+  await pickDay(page, day)
+  await expect(slot(page, 8)).toBeDisabled()
+  await expect(slot(page, 8)).toContainText('Cerrada por la sede')
 
   await page.goto(`/admin/canchas/${data.courtId}/horario`)
   await page.locator('.mini-item', { hasText: 'Bloqueo de prueba' }).locator('button:has-text("Quitar")').click()
   await expect(page.locator('.mini-item', { hasText: 'Bloqueo de prueba' })).toHaveCount(0)
 
   await page.goto(`/venues/${data.venueId}`)
-  await page.fill('#select-date', day)
-  await expect(page.locator('.time-chip', { hasText: '08:00' }).first()).toBeEnabled()
+  await pickDay(page, day)
+  await expect(slot(page, 8)).toBeEnabled()
   checkErrors()
 })
 
@@ -63,5 +64,28 @@ test('la agenda y los reportes de la sede cargan', async ({ page }) => {
   await expect(page.getByRole('heading').first()).toBeVisible()
   await page.goto(`/admin/sedes/${data.venueId}/reportes`)
   await expect(page.locator('.bar-plot')).toBeVisible()
+  checkErrors()
+})
+
+test('el dueño cancela una reserva desde la agenda con el diálogo de confirmación', async ({ page }) => {
+  const checkErrors = failOnPageErrors(page)
+  const day = tomorrowInBogota()
+  const customerToken = await loginToken(data.customerEmail)
+  const reservation = await api('POST', '/api/v1/reservations',
+    { courtId: data.courtId, startAt: `${day}T21:00:00-05:00`, durationHours: 1 }, customerToken)
+
+  await page.goto(`/admin/sedes/${data.venueId}/agenda`)
+  const item = page.locator('.mini-item', { has: page.locator(`a[href="/reservas/${reservation.id}"]`) })
+  await item.getByRole('button', { name: 'Cancelar' }).click()
+
+  const dialog = page.getByRole('dialog', { name: /Cancelar la reserva de/ })
+  await expect(dialog).toContainText('Le llegará un correo')
+  await dialog.getByRole('button', { name: 'Volver' }).click() // arrepentirse no cancela nada
+  await expect(dialog).toBeHidden()
+  await expect(item.locator('.status-tag')).toHaveText(/Confirmada/i)
+
+  await item.getByRole('button', { name: 'Cancelar' }).click()
+  await dialog.getByRole('button', { name: 'Cancelar reserva' }).click()
+  await expect(item.locator('.status-tag')).toHaveText(/Cancelada/i)
   checkErrors()
 })

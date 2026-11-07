@@ -71,3 +71,32 @@ export function addDays(isoDate: string, days: number): string {
   date.setUTCDate(date.getUTCDate() + days)
   return date.toISOString().slice(0, 10)
 }
+
+/** "2026-11-07" → 6 (1 = lunes … 7 = domingo, como en el backend) */
+export function isoDayOfWeek(isoDate: string): number {
+  const day = new Date(`${isoDate}T00:00:00Z`).getUTCDay()
+  return day === 0 ? 7 : day
+}
+
+/** "2026-11-07" → "sábado 7 de noviembre" */
+export function formatLongDate(isoDate: string): string {
+  return new Intl.DateTimeFormat('es-CO', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' })
+    .format(new Date(`${isoDate}T00:00:00Z`))
+    .replace(',', '')
+}
+
+/** "2026-11-07" → "nov" */
+export function formatMonthShort(isoDate: string): string {
+  return new Intl.DateTimeFormat('es-CO', { month: 'short', timeZone: 'UTC' }).format(new Date(`${isoDate}T00:00:00Z`)).replace('.', '')
+}
+
+/** Tiempo que falta hasta una fecha: "en 2 días", "en 3 h 15 min", "ya empezó". */
+export function formatCountdown(targetIso: string, now = Date.now()): string {
+  const minutes = Math.round((new Date(targetIso).getTime() - now) / 60000)
+  if (minutes <= 0) return 'ya empezó'
+  if (minutes < 60) return `en ${minutes} min`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `en ${hours} h${minutes % 60 ? ` ${minutes % 60} min` : ''}`
+  const days = Math.round(hours / 24)
+  return days === 1 ? 'en 1 día' : `en ${days} días`
+}
