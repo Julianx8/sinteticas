@@ -82,6 +82,10 @@ docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "${PWD}/backend:
 
 (En Git Bash para Windows, antepón `MSYS_NO_PATHCONV=1` al comando.)
 
+### Correr las pruebas de punta a punta (navegador)
+
+Prueban los flujos haciendo clic en la aplicación real (reservar, cancelar, recuperar contraseña, horario, bloqueos...). Ver [e2e/README.md](e2e/README.md).
+
 ---
 
 ## 4. Estructura del proyecto
@@ -106,6 +110,8 @@ sinteticas/
 │   ├── package.json
 │   ├── Dockerfile
 │   └── src/                  # componentes, páginas, lógica de UI
+│
+├── e2e/                      # pruebas de punta a punta con Playwright
 │
 └── docs/                     # evidencia para el proyecto de grado
     ├── arquitectura/

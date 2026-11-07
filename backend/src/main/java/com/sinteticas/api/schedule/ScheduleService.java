@@ -78,7 +78,7 @@ public class ScheduleService {
         for (ScheduleSlotRequest slot : slots) {
             if (slot.endHour() <= slot.startHour()) {
                 throw ApiException.badRequest("INVALID_SCHEDULE_RANGE",
-                        "La hora de cierre debe ser mayor que la de apertura (día " + slot.dayOfWeek() + ")");
+                        "La hora de cierre debe ser mayor que la de apertura (" + dayName(slot.dayOfWeek()) + ")");
             }
         }
 
@@ -91,10 +91,16 @@ public class ScheduleService {
             for (int i = 1; i < sorted.size(); i++) {
                 if (sorted.get(i).startHour() < sorted.get(i - 1).endHour()) {
                     throw ApiException.businessRule("SCHEDULE_OVERLAP",
-                            "Hay franjas que se solapan el día " + sorted.get(i).dayOfWeek());
+                            "Hay franjas que se cruzan el " + dayName(sorted.get(i).dayOfWeek()));
                 }
             }
         }
     }
 
+    private static final String[] DAY_NAMES = {"lunes", "martes", "miércoles", "jueves", "viernes", "sábado", "domingo"};
+
+    /** 1 = lunes ... 7 = domingo (ISO-8601), igual que en la base de datos. */
+    static String dayName(int dayOfWeek) {
+        return dayOfWeek >= 1 && dayOfWeek <= 7 ? DAY_NAMES[dayOfWeek - 1] : "día " + dayOfWeek;
+    }
 }

@@ -58,7 +58,8 @@ class ScheduleIntegrationTest extends IntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(json(Map.of("slots", List.of(slot(3, 8, 18, 60000), slot(3, 17, 22, 80000))))))
                 .andExpect(status().isUnprocessableEntity())
-                .andExpect(jsonPath("$.code").value("SCHEDULE_OVERLAP"));
+                .andExpect(jsonPath("$.code").value("SCHEDULE_OVERLAP"))
+                .andExpect(jsonPath("$.detail").value("Hay franjas que se cruzan el miércoles"));
     }
 
     @Test
