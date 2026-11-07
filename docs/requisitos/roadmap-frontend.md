@@ -110,6 +110,12 @@ Sin conexión **nunca se permite reservar**: la disponibilidad siempre viene del
 
 ## Fases
 
+| Fase | Estado |
+|---|---|
+| A · solo frontend | ✅ Hecha (PR #2) |
+| B · backend pequeño + frontend | ✅ Hecha (rama `feature/fase-b`) |
+| C · funciones con migración | Pendiente |
+
 **Fase A: solo frontend**
 1. Navegación inferior en celular.
 2. Tira de días y línea de tiempo con selección de rango.
