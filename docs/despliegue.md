@@ -30,16 +30,75 @@ Archivos: [`docker-compose.prod.yml`](../docker-compose.prod.yml), [`.env.prod.e
 | Dominio | Uno propio (`sinteticas.com.co`) o un subdominio gratuito (DuckDNS, No-IP) |
 | Correo | Una cuenta de Gmail con **contraseña de aplicación** (o cualquier SMTP) |
 
-## 1. Preparar el servidor
+### Opción gratuita: Oracle Cloud «Always Free» + DuckDNS
+
+Oracle da gratis y sin vencimiento un servidor ARM de hasta **4 núcleos y 24 GB de RAM**, de sobra para el sistema.
+DuckDNS da gratis un subdominio (`sinteticas-gdt.duckdns.org`). Costo total: **$0**.
+
+**A. Cuenta de Oracle Cloud** — https://signup.cloud.oracle.com
+1. Registrarse. Pide una tarjeta **solo para verificar identidad** (hace una retención temporal de ~1 USD que se
+   devuelve); mientras se use solo lo marcado «Always Free elegible», no cobra nada.
+2. **Región de origen:** elegir **Colombia Central (Bogotá)** si aparece, o la más cercana (São Paulo, Querétaro).
+   No se puede cambiar después.
+
+**B. Crear el servidor** — menú ☰ → *Compute* → *Instances* → *Create instance*
+1. *Name:* `sinteticas`.
+2. *Image and shape* → *Edit*:
+   - *Image:* **Canonical Ubuntu 24.04**.
+   - *Shape:* *Ampere* → **VM.Standard.A1.Flex** con **2 OCPU y 12 GB** (dentro del límite gratis de 4 y 24).
+   - Si sale *«Out of capacity»*: probar otro *Availability domain*, intentar más tarde, o usar
+     **VM.Standard.E2.1.Micro** (AMD, 1 GB; también gratis, más justo pero funciona gracias a la swap del script).
+3. *Networking:* dejar *Create new virtual cloud network* y **Assign a public IPv4 address** activado.
+4. *Add SSH keys:* **Generate a key pair for me** → *Save private key* (guardar el archivo `.key`; sin él no se
+   puede entrar al servidor).
+5. *Create*. Al quedar en *Running*, copiar la **Public IP address**.
+
+**C. Abrir los puertos 80 y 443 en Oracle**
+En la instancia → *Subnet* (enlace) → *Security Lists* → *Default Security List* → *Add Ingress Rules*, dos veces:
+
+| Source CIDR | IP Protocol | Destination Port Range |
+|---|---|---|
+| `0.0.0.0/0` | TCP | `80` |
+| `0.0.0.0/0` | TCP | `443` |
+
+(El firewall *dentro* de Ubuntu también los bloquea: lo arregla el script del paso 1.)
+
+**D. Subdominio en DuckDNS** — https://www.duckdns.org
+1. Entrar con Google o GitHub.
+2. Escribir el subdominio (p. ej. `sinteticas-gdt`) → *add domain*.
+3. En *current ip* pegar la **Public IP** del servidor → *update ip*.
+
+Ese es el dominio: `SITE_ADDRESS=sinteticas-gdt.duckdns.org` y `PUBLIC_URL=https://sinteticas-gdt.duckdns.org`.
+
+**E. Entrar al servidor** (desde Git Bash en Windows, o la terminal en Mac/Linux):
 
 ```bash
-# Docker (script oficial)
-curl -fsSL https://get.docker.com | sh
-sudo usermod -aG docker $USER   # cerrar sesión y volver a entrar
-
-# Firewall: solo SSH, HTTP y HTTPS
-sudo ufw allow OpenSSH && sudo ufw allow 80 && sudo ufw allow 443 && sudo ufw enable
+chmod 600 ~/Downloads/ssh-key-*.key
+ssh -i ~/Downloads/ssh-key-*.key ubuntu@IP_PUBLICA
 ```
+
+Y seguir con el paso 1.
+
+> **A tener en cuenta con Oracle gratis**
+> - Oracle puede **recuperar instancias «Always Free» que pasan 7 días casi sin uso** (CPU, red y memoria muy bajas).
+>   Con visitas reales no pasa; si les preocupa (p. ej. antes de la sustentación), se puede pasar la cuenta a
+>   *Pay As You Go*: sigue sin cobrar mientras solo se use lo gratuito y esas instancias no se recuperan. Revisen
+>   que todo lo creado diga «Always Free».
+> - Oracle bloquea el puerto 25 de salida; el correo por Gmail usa el **587**, que sí funciona.
+
+## 1. Preparar el servidor
+
+Con el proyecto clonado o directamente desde GitHub, un solo script instala Docker, abre los puertos 80 y 443 en el
+firewall de Ubuntu (incluido el de las imágenes de Oracle), crea 2 GB de swap y descarga el proyecto en
+`/opt/sinteticas`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Julianx8/sinteticas/main/deploy/setup-server.sh | bash
+# cerrar la sesión SSH y volver a entrar (para usar docker sin sudo)
+```
+
+Ver qué hace: [`deploy/setup-server.sh`](../deploy/setup-server.sh). En otro proveedor que use `ufw`, el script
+abre ahí los puertos.
 
 ## 2. Apuntar el dominio
 
@@ -52,13 +111,12 @@ dig +short sinteticas.ejemplo.com   # debe mostrar la IP del servidor
 
 Si el dominio no apunta al servidor, Caddy no puede obtener el certificado HTTPS.
 
-## 3. Descargar el proyecto y configurarlo
+## 3. Configurar
+
+El script del paso 1 ya dejó el proyecto en `/opt/sinteticas` (rama `main`).
 
 ```bash
-sudo mkdir -p /opt/sinteticas && sudo chown $USER /opt/sinteticas
-git clone https://github.com/Julianx8/sinteticas.git /opt/sinteticas
-cd /opt/sinteticas && git checkout main
-
+cd /opt/sinteticas
 cp .env.prod.example .env.prod
 chmod 600 .env.prod          # solo tu usuario puede leerlo
 nano .env.prod
