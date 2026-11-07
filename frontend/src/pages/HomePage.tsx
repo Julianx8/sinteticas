@@ -1,16 +1,19 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiFetch, query } from '../api/client'
+import { apiFetch, fetchWithOfflineCopy, query } from '../api/client'
 import { COURT_TYPES, type CourtType, type Holiday, type PageResponse, type Reservation, type Venue } from '../api/types'
 import { useAuth } from '../auth/AuthContext'
-import { QueryState } from '../components/ui'
-import { courtTypeLabel, formatDate, formatDateTime, todayIso } from '../lib/format'
+import { MapPinIcon, ShareIcon } from '../components/icons'
+import { QueryState, usePageTitle } from '../components/ui'
+import { courtTypeLabel, formatCountdown, formatDate, formatDateTime, formatTime, todayIso } from '../lib/format'
+import { mapsUrl, whatsappUrl } from '../lib/share'
 
 const PAGE_SIZE = 12
 
 export function HomePage() {
   const { isAuthenticated } = useAuth()
+  usePageTitle(undefined)
   const [search, setSearch] = useState('')
   const [courtType, setCourtType] = useState<CourtType | ''>('')
   const [page, setPage] = useState(0)
@@ -26,6 +29,7 @@ export function HomePage() {
 
   return (
     <div className="dashboard-shell">
+      {isAuthenticated && <NextMatchCard />}
       <section className="welcome-panel">
         <div className="welcome-copy">
           <p className="eyebrow warm">Canchas sintéticas en Girardot</p>
@@ -75,10 +79,19 @@ export function HomePage() {
               placeholder="Buscar por nombre o dirección"
               aria-label="Buscar sedes"
             />
-            <select value={courtType} onChange={(event) => { setCourtType(event.target.value as CourtType | ''); setPage(0) }} aria-label="Tipo de cancha">
-              <option value="">Todos los tipos</option>
-              {COURT_TYPES.map((type) => <option key={type} value={type}>{courtTypeLabel(type)}</option>)}
-            </select>
+          </div>
+          <div className="chip-row" role="group" aria-label="Tipo de cancha">
+            {(['', ...COURT_TYPES] as const).map((type) => (
+              <button
+                key={type || 'todos'}
+                type="button"
+                className={`filter-chip ${courtType === type ? 'selected' : ''}`}
+                aria-pressed={courtType === type}
+                onClick={() => { setCourtType(type as CourtType | ''); setPage(0) }}
+              >
+                {type ? courtTypeLabel(type) : 'Todas'}
+              </button>
+            ))}
           </div>
 
           <QueryState
@@ -157,7 +170,7 @@ function NextHoliday() {
 function UpcomingReservations() {
   const reservationsQuery = useQuery({
     queryKey: ['reservations', 'upcoming'],
-    queryFn: () => apiFetch<PageResponse<Reservation>>('/api/v1/reservations/mine?upcoming=true&status=CONFIRMED&size=3&sort=startAt,asc'),
+    queryFn: upcomingReservations,
   })
   const reservations = reservationsQuery.data?.content ?? []
 
@@ -188,5 +201,32 @@ function UpcomingReservations() {
         ))}
       </div>
     </div>
+  )
+}
+
+const upcomingReservations = () => fetchWithOfflineCopy<PageResponse<Reservation>>(
+  '/api/v1/reservations/mine?upcoming=true&status=CONFIRMED&size=3&sort=startAt,asc', 'upcoming',
+)
+
+/** Lo primero que ve un jugador con partido pendiente: cuándo, dónde y cómo llegar. */
+function NextMatchCard() {
+  const upcomingQuery = useQuery({ queryKey: ['reservations', 'upcoming'], queryFn: upcomingReservations })
+  const next = upcomingQuery.data?.content[0]
+  if (!next) return null
+  const shareText = `⚽ Partido el ${formatDateTime(next.startAt)} en ${next.court.venueName} (${next.court.name}). ${next.court.venueAddress}`
+
+  return (
+    <section className="next-match" aria-label="Tu próximo partido">
+      <div className="next-match-info">
+        <p className="eyebrow">Tu próximo partido · {formatCountdown(next.startAt)}</p>
+        <h2>{formatDateTime(next.startAt)} – {formatTime(next.endAt)}</h2>
+        <p>{next.court.venueName} · {next.court.name}</p>
+      </div>
+      <div className="next-match-actions">
+        <a className="secondary link-button small-button" href={mapsUrl(next.court.venueAddress)} target="_blank" rel="noreferrer"><MapPinIcon size={18} /> Cómo llegar</a>
+        <a className="secondary link-button small-button" href={whatsappUrl(shareText)} target="_blank" rel="noreferrer"><ShareIcon size={18} /> Compartir</a>
+        <Link className="primary link-button small-button" to={`/reservas/${next.id}`}>Ver reserva</Link>
+      </div>
+    </section>
   )
 }

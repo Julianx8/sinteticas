@@ -1,0 +1,745 @@
+/* =====================================================================
+   Fase A · mobile-first (ver docs/requisitos/roadmap-frontend.md)
+   Se carga después de styles.css y usa sus mismos colores (variables de :root).
+   ===================================================================== */
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  left: 1rem;
+  top: -3rem;
+  z-index: 30;
+  padding: 0.5rem 0.9rem;
+  border-radius: 8px;
+  background: var(--ink);
+  color: white;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ---------- Siluetas de carga ---------- */
+.skeleton-list {
+  display: grid;
+  gap: 0.6rem;
+  margin: 0.5rem 0;
+}
+
+.skeleton-row {
+  height: 3.2rem;
+  border-radius: 12px;
+  background: linear-gradient(90deg, rgba(98, 113, 100, 0.08) 25%, rgba(98, 113, 100, 0.16) 50%, rgba(98, 113, 100, 0.08) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-shine 1.3s ease-in-out infinite;
+}
+
+.skeleton-row:nth-child(3n) {
+  width: 80%;
+}
+
+@keyframes skeleton-shine {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-row { animation: none; }
+}
+
+/* ---------- Errores con acción ---------- */
+.error-title {
+  font-weight: 700;
+}
+
+.error-actions:not(:empty) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.6rem;
+}
+
+.offline-banner {
+  position: sticky;
+  top: 0;
+  z-index: 11;
+  padding: 0.55rem 1rem;
+  text-align: center;
+  font-size: 0.9rem;
+  background: #3a4a44;
+  color: white;
+}
+
+.offline-notice {
+  margin-bottom: 0.75rem;
+  background: rgba(186, 110, 71, 0.1);
+  border-color: rgba(186, 110, 71, 0.2);
+  color: #7a4027;
+}
+
+.empty-page {
+  text-align: center;
+  padding: 3rem 1.25rem;
+}
+
+.empty-page .venue-actions {
+  justify-content: center;
+}
+
+/* ---------- Botones auxiliares ---------- */
+.icon-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(98, 113, 100, 0.18);
+  background: rgba(98, 113, 100, 0.06);
+  color: var(--ink);
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.danger-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  padding: 0.7rem 1.1rem;
+  font-weight: 600;
+  border: 1px solid rgba(160, 60, 48, 0.3);
+  background: #a1493a;
+  color: white;
+}
+
+.danger-button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.capitalize::first-letter {
+  text-transform: uppercase;
+}
+
+/* ---------- Hoja inferior (dialog) ---------- */
+dialog.sheet {
+  width: min(560px, 100%);
+  max-height: 92vh;
+  margin: auto;
+  padding: 0;
+  border: none;
+  border-radius: 20px;
+  background: #fbf8f4;
+  color: var(--ink);
+  box-shadow: 0 30px 60px rgba(30, 40, 36, 0.25);
+}
+
+dialog.sheet::backdrop {
+  background: rgba(24, 32, 29, 0.45);
+}
+
+.sheet-body {
+  display: grid;
+  gap: 0.9rem;
+  padding: 1.25rem;
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.sheet-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.sheet-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+
+.review-list {
+  display: grid;
+  gap: 0.45rem;
+  margin: 0;
+}
+
+.review-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.review-list dt {
+  color: var(--muted);
+}
+
+.review-list dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+}
+
+.review-price-line dt,
+.review-price-line dd {
+  font-size: 0.92rem;
+  font-weight: 400;
+}
+
+.review-total {
+  padding-top: 0.5rem;
+  border-top: 1px dashed rgba(98, 113, 100, 0.3);
+}
+
+.review-total dd {
+  font-size: 1.25rem;
+}
+
+.cancel-policy {
+  margin: 0;
+  padding: 0.65rem 0.8rem;
+  border-radius: 10px;
+  background: var(--green-soft);
+  color: #23654e;
+  font-size: 0.92rem;
+}
+
+.cancel-policy.warning {
+  background: rgba(186, 110, 71, 0.12);
+  color: #7a4027;
+}
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.field input {
+  padding: 0.75rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(98, 113, 100, 0.25);
+  background: white;
+  font: inherit;
+}
+
+.success-hero {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 0.2rem;
+  color: var(--green);
+}
+
+.success-hero p {
+  margin: 0;
+  color: var(--ink);
+}
+
+.success-hero p.muted {
+  color: var(--muted);
+}
+
+.share-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.6rem;
+  margin-top: 1rem;
+}
+
+/* ---------- Tira de días ---------- */
+/* Sin esto, la columna del grid se estira al ancho de los 31 días en vez de dejar que la tira se desplace */
+.detail-page,
+.detail-panel {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.day-strip-wrap,
+.court-booking {
+  min-width: 0;
+}
+
+.day-strip-wrap {
+  margin-bottom: 1rem;
+}
+
+.day-strip-wrap .label::first-letter {
+  text-transform: uppercase;
+}
+
+.day-strip {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding: 0.25rem 0.1rem 0.6rem;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin;
+}
+
+.day-chip {
+  flex: 0 0 auto;
+  display: grid;
+  justify-items: center;
+  gap: 0.05rem;
+  min-width: 3.8rem;
+  padding: 0.5rem 0.4rem;
+  border-radius: 14px;
+  border: 1px solid rgba(98, 113, 100, 0.18);
+  background: white;
+  color: var(--ink);
+  scroll-snap-align: center;
+}
+
+.day-chip small {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.day-chip strong {
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.day-chip.selected {
+  border-color: transparent;
+  background: linear-gradient(135deg, #d79562, #b86846);
+  color: white;
+  box-shadow: 0 8px 18px rgba(184, 104, 70, 0.25);
+}
+
+.day-chip.selected small {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+/* ---------- Pestañas de canchas ---------- */
+.court-tabs {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  padding-bottom: 0.4rem;
+  margin-bottom: 0.75rem;
+}
+
+.court-tabs button {
+  flex: 0 0 auto;
+  display: grid;
+  text-align: left;
+  padding: 0.55rem 0.9rem;
+  border-radius: 12px;
+  border: 1px solid rgba(98, 113, 100, 0.18);
+  background: rgba(255, 255, 255, 0.7);
+  color: var(--ink);
+}
+
+.court-tabs button small {
+  color: var(--muted);
+}
+
+.court-tabs button.active {
+  border-color: rgba(47, 125, 92, 0.45);
+  background: var(--green-soft);
+}
+
+/* ---------- Línea de tiempo de horas ---------- */
+.court-booking h3 {
+  margin: 0;
+}
+
+.timeline-hint {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 0.92rem;
+}
+
+.timeline {
+  list-style: none;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.price-divider {
+  margin: 0.6rem 0 0.25rem;
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.slot-row {
+  display: grid;
+  grid-template-columns: 3.4rem 0.45rem 1fr auto;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 48px;
+  padding: 0.55rem 0.85rem;
+  border-radius: 12px;
+  border: 1px solid rgba(98, 113, 100, 0.16);
+  background: white;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.slot-hour {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot-bar {
+  align-self: stretch;
+  border-radius: 4px;
+  background: var(--green);
+}
+
+.slot-price {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.slot-row.status-available:hover {
+  border-color: rgba(47, 125, 92, 0.4);
+}
+
+.slot-row.in-range {
+  border-color: transparent;
+  background: linear-gradient(135deg, #d79562, #b86846);
+  color: white;
+}
+
+.slot-row.in-range .slot-bar {
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.slot-row:disabled {
+  cursor: not-allowed;
+  background: rgba(98, 113, 100, 0.05);
+  color: var(--muted);
+}
+
+/* Cada estado tiene su textura además del color (para quien no distingue colores) */
+.slot-row.status-booked .slot-bar {
+  background: repeating-linear-gradient(45deg, #9aa69f 0 3px, transparent 3px 6px);
+}
+
+.slot-row.status-blocked .slot-bar {
+  background: repeating-linear-gradient(0deg, #b86846 0 2px, transparent 2px 5px);
+}
+
+.slot-row.status-past .slot-bar {
+  background: rgba(98, 113, 100, 0.2);
+}
+
+/* ---------- Barra fija de resumen ---------- */
+.booking-bar {
+  position: sticky;
+  bottom: 0.75rem;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 16px;
+  background: rgba(29, 42, 47, 0.96);
+  color: white;
+  box-shadow: 0 18px 40px rgba(29, 42, 47, 0.3);
+}
+
+.booking-bar-info {
+  display: grid;
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.booking-bar-info span {
+  font-size: 0.82rem;
+  opacity: 0.85;
+}
+
+.booking-bar-info span::first-letter {
+  text-transform: uppercase;
+}
+
+.booking-bar .icon-button {
+  color: white;
+  border-color: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.duration-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.duration-stepper output {
+  min-width: 2ch;
+  text-align: center;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* ---------- Próximo partido y reservas ---------- */
+.next-match {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.1rem 1.25rem;
+  border-radius: 20px;
+  background: linear-gradient(135deg, #24463a, #2f7d5c);
+  color: white;
+  box-shadow: var(--shadow);
+}
+
+.next-match h2 {
+  margin: 0.15rem 0;
+  font-size: 1.3rem;
+}
+
+.next-match p {
+  margin: 0;
+}
+
+.next-match .eyebrow {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.next-match-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.next-match .secondary {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: white;
+}
+
+.countdown-pill {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0.75rem;
+  padding: 0.35rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+  background: rgba(186, 110, 71, 0.12);
+  color: #7a4027;
+}
+
+.reservation-topline {
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.split-bill .split-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.split-amount {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 1.05rem;
+}
+
+.split-amount strong {
+  font-size: 1.8rem;
+  color: var(--green);
+}
+
+/* ---------- Filtros como chips ---------- */
+.chip-row {
+  display: flex;
+  gap: 0.45rem;
+  overflow-x: auto;
+  padding: 0.2rem 0 0.6rem;
+  margin-bottom: 0.5rem;
+}
+
+.filter-chip {
+  flex: 0 0 auto;
+  min-height: 40px;
+  padding: 0.45rem 0.9rem;
+  border-radius: 999px;
+  border: 1px solid rgba(98, 113, 100, 0.2);
+  background: white;
+  color: var(--ink);
+}
+
+.filter-chip.selected {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: white;
+}
+
+/* ---------- Pasos en el login ---------- */
+.how-it-works {
+  display: grid;
+  gap: 0.8rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: step;
+}
+
+.how-it-works li {
+  display: grid;
+  grid-template-columns: 2rem 1fr;
+  column-gap: 0.75rem;
+  counter-increment: step;
+}
+
+.how-it-works li::before {
+  content: counter(step);
+  grid-row: span 2;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 50%;
+  background: rgba(186, 110, 71, 0.15);
+  color: #8a4d34;
+  font-weight: 700;
+}
+
+.how-it-works span {
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+/* ---------- Navegación inferior (solo celular) ---------- */
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  /* Arriba queda solo la marca; la navegación y la sesión pasan abajo */
+  .topbar {
+    padding: 0.75rem 1rem;
+  }
+
+  .topbar .main-nav,
+  .topbar .auth-actions {
+    display: none;
+  }
+
+  .bottom-nav {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 20;
+    display: flex;
+    justify-content: space-around;
+    padding: 0.35rem 0.25rem calc(0.35rem + env(safe-area-inset-bottom));
+    background: rgba(255, 255, 255, 0.96);
+    backdrop-filter: blur(12px);
+    border-top: 1px solid var(--line);
+  }
+
+  .bottom-nav a {
+    flex: 1;
+    display: grid;
+    justify-items: center;
+    gap: 0.1rem;
+    min-height: 52px;
+    padding: 0.35rem 0.25rem;
+    border-radius: 12px;
+    color: var(--muted);
+    font-size: 0.72rem;
+  }
+
+  .bottom-nav a.active {
+    color: #8a4d34;
+    background: rgba(186, 110, 71, 0.1);
+  }
+
+  /* Espacio para que la barra inferior no tape el final de la página */
+  .page-content {
+    padding-bottom: calc(6rem + env(safe-area-inset-bottom));
+  }
+
+  /* La barra de resumen queda justo encima de la navegación inferior */
+  .booking-bar {
+    position: fixed;
+    left: 0.5rem;
+    right: 0.5rem;
+    bottom: calc(4.4rem + env(safe-area-inset-bottom));
+    margin: 0;
+  }
+
+  .booking-bar > .primary {
+    flex: 1 1 100%;
+  }
+
+  .booking-page .detail-panel {
+    padding-bottom: 10rem;
+  }
+
+  /* La hoja de revisión sube desde abajo */
+  dialog.sheet {
+    width: 100%;
+    max-width: 100%;
+    margin: auto 0 0;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .sheet-body {
+    padding-bottom: calc(1.25rem + env(safe-area-inset-bottom));
+  }
+
+  .sheet-actions > * {
+    flex: 1;
+  }
+
+  .next-match-actions {
+    width: 100%;
+  }
+
+  .next-match-actions > * {
+    flex: 1;
+  }
+}

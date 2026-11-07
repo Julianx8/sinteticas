@@ -1,5 +1,8 @@
+import { usePageTitle } from '../../components/ui'
+
 /** Panel ilustrado + formulario, compartido por las páginas de cuenta. */
 export function AuthLayout({ eyebrow, title, children }: { eyebrow: string; title: string; children: React.ReactNode }) {
+  usePageTitle(title)
   return (
     <section className="auth-shell">
       <div className="auth-visual-panel">
@@ -16,6 +19,11 @@ export function AuthLayout({ eyebrow, title, children }: { eyebrow: string; titl
             <span>🏟️ Sedes</span>
             <span>📅 Agenda</span>
           </div>
+          <ol className="how-it-works">
+            <li><strong>Elige sede y día</strong><span>Ves las horas libres de cada cancha, al instante.</span></li>
+            <li><strong>Toca las horas</strong><span>De 1 a 3 horas seguidas, con el precio total a la vista.</span></li>
+            <li><strong>Confirma y comparte</strong><span>Te llega el correo y lo mandas al grupo por WhatsApp.</span></li>
+          </ol>
         </div>
       </div>
 

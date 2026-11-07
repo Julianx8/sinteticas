@@ -1,10 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { apiFetch, query } from '../api/client'
+import { fetchWithOfflineCopy, query } from '../api/client'
 import type { PageResponse, Reservation } from '../api/types'
-import { PageHeading, QueryState, ReservationStatusTag } from '../components/ui'
-import { formatDateTime, formatPrice, formatTime } from '../lib/format'
+import { OfflineNotice, PageHeading, QueryState, ReservationStatusTag } from '../components/ui'
+import { formatCountdown, formatDateTime, formatPrice, formatTime } from '../lib/format'
 
 type Tab = 'upcoming' | 'history'
 
@@ -14,11 +14,12 @@ export function ReservationsPage() {
 
   const reservationsQuery = useQuery({
     queryKey: ['reservations', tab, page],
-    queryFn: () => apiFetch<PageResponse<Reservation>>(`/api/v1/reservations/mine${query(
+    // Se guarda una copia para poder verlas sin conexión (por ejemplo, ya en la cancha)
+    queryFn: () => fetchWithOfflineCopy<PageResponse<Reservation>>(`/api/v1/reservations/mine${query(
       tab === 'upcoming'
         ? { upcoming: true, status: 'CONFIRMED', sort: 'startAt,asc', page, size: 10 }
         : { sort: 'startAt,desc', page, size: 10 },
-    )}`),
+    )}`, `mine:${tab}:${page}`),
     placeholderData: (previous) => previous,
   })
 
@@ -40,9 +41,11 @@ export function ReservationsPage() {
         <button type="button" role="tab" aria-selected={tab === 'history'} className={tab === 'history' ? 'active' : ''} onClick={() => changeTab('history')}>Todas</button>
       </div>
 
+      <OfflineNotice savedAt={reservationsQuery.data?.offlineSavedAt} />
       <QueryState
         isLoading={reservationsQuery.isLoading}
         error={reservationsQuery.error}
+        onRetry={() => reservationsQuery.refetch()}
         isEmpty={reservations.length === 0}
         loading="Cargando reservas..."
         empty={tab === 'upcoming' ? 'No tienes partidos próximos.' : 'Aún no tienes reservas.'}
@@ -53,6 +56,7 @@ export function ReservationsPage() {
           <Link key={reservation.id} to={`/reservas/${reservation.id}`} className="reservation-card">
             <div className="reservation-topline">
               <ReservationStatusTag status={reservation.status} />
+              {tab === 'upcoming' && <span className="countdown-pill">{formatCountdown(reservation.startAt)}</span>}
               <strong>{formatPrice(reservation.totalPrice)}</strong>
             </div>
             <h3>{reservation.court.name}</h3>

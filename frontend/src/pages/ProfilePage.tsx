@@ -1,8 +1,9 @@
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
+import { Link, useNavigate } from 'react-router-dom'
 import { apiFetch } from '../api/client'
 import type { User } from '../api/types'
-import { useAuth } from '../auth/AuthContext'
+import { hasAnyRole, useAuth } from '../auth/AuthContext'
 import { ErrorBox, PageHeading, SuccessBox } from '../components/ui'
 import { ROLE_LABELS, formatDateTime } from '../lib/format'
 
@@ -135,7 +136,9 @@ function PasswordForm({ email }: { email: string }) {
 }
 
 function SessionsSection() {
-  const { logout } = useAuth()
+  const { logout, user } = useAuth()
+  const navigate = useNavigate()
+  const isSuperAdmin = hasAnyRole(user, 'SUPER_ADMIN')
   const mutation = useMutation({
     mutationFn: () => apiFetch('/api/v1/users/me/sessions', { method: 'DELETE' }),
     // También se cerró la de este navegador
@@ -146,9 +149,18 @@ function SessionsSection() {
     <div className="stack-form">
       <p className="muted">¿Iniciaste sesión en un computador ajeno o perdiste el celular? Cierra la sesión en todos los dispositivos, incluido este.</p>
       <ErrorBox error={mutation.error} />
-      <button type="button" className="secondary" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
-        Cerrar sesión en todos los dispositivos
-      </button>
+      <div className="venue-actions">
+        {/* En celular el botón de la barra superior no se ve: aquí está siempre a mano */}
+        <button type="button" className="primary" onClick={() => { logout(); navigate('/') }}>
+          Cerrar sesión
+        </button>
+        <button type="button" className="secondary" onClick={() => mutation.mutate()} disabled={mutation.isPending}>
+          Cerrar sesión en todos los dispositivos
+        </button>
+      </div>
+      {isSuperAdmin && (
+        <p className="muted">Administración: <Link to="/admin/reportes">resumen de la plataforma</Link> · <Link to="/backend-rutas">rutas de la API</Link></p>
+      )}
     </div>
   )
 }

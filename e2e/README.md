@@ -9,8 +9,9 @@ Corren solas en GitHub Actions en cada push y cada PR (trabajo "Pruebas de punta
 | Archivo | Flujos |
 |---|---|
 | `tests/cuenta.spec.ts` | Registro → "olvidé mi contraseña" → correo en Mailpit → restablecer → entrar · cambiar el nombre · renovación automática del token vencido · rutas protegidas |
-| `tests/reservas.spec.ts` | Reservar, verla en "Mis reservas", cancelarla y que la hora vuelva a quedar libre · sin sesión se pide iniciar sesión |
-| `tests/dueno.spec.ts` | Panel del dueño · horario con franjas que se cruzan (error claro) · bloqueos que quitan horas de la disponibilidad · agenda y reportes |
+| `tests/reservas.spec.ts` | Reservar 2 horas con dos toques, revisar, calendario/WhatsApp/mapa, dividir la cuenta y cancelar · alguien toma la hora mientras se revisa (aviso y hora sugerida) · sin sesión se pide iniciar sesión |
+| `tests/dueno.spec.ts` | Panel del dueño · horario con franjas que se cruzan (error claro) · bloqueos que quitan horas de la disponibilidad · cancelar desde la agenda con diálogo de confirmación · agenda y reportes |
+| `tests/movil.spec.ts` | En pantalla de celular: navegación inferior, ninguna página se sale del ancho, barra de resumen visible, página 404, "Mis reservas" sin internet y borrado de copias al cerrar sesión |
 
 `global-setup.ts` crea por la API los datos que necesitan (un dueño con sede, cancha y horario, y un cliente) con correos únicos, así que se pueden correr muchas veces sobre la misma base.
 

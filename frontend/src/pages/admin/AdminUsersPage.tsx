@@ -3,11 +3,12 @@ import { useState } from 'react'
 import { apiFetch, query, queryClient } from '../../api/client'
 import type { PageResponse, Role, User } from '../../api/types'
 import { useAuth } from '../../auth/AuthContext'
-import { ActiveTag, ErrorBox, PageHeading, QueryState } from '../../components/ui'
+import { ActiveTag, ErrorBox, PageHeading, QueryState, useConfirm } from '../../components/ui'
 import { ROLE_LABELS, formatDateTime } from '../../lib/format'
 
 export function AdminUsersPage() {
   const { user: me } = useAuth()
+  const confirm = useConfirm()
   const [search, setSearch] = useState('')
   const [role, setRole] = useState<Role | ''>('')
   const [page, setPage] = useState(0)
@@ -77,8 +78,15 @@ export function AdminUsersPage() {
                     type="button"
                     className="secondary small-button"
                     disabled={statusMutation.isPending}
-                    onClick={() => (person.enabled ? window.confirm(`¿Desactivar a ${person.fullName}? Se cerrarán sus sesiones y no podrá entrar.`) : true)
-                      && statusMutation.mutate({ userId: person.id, enabled: !person.enabled })}
+                    onClick={async () => {
+                      const ok = !person.enabled || await confirm({
+                        title: `¿Desactivar a ${person.fullName}?`,
+                        message: 'Se cerrarán sus sesiones y no podrá entrar hasta que lo actives de nuevo.',
+                        confirmLabel: 'Desactivar',
+                        danger: true,
+                      })
+                      if (ok) statusMutation.mutate({ userId: person.id, enabled: !person.enabled })
+                    }}
                   >
                     {person.enabled ? 'Desactivar' : 'Activar'}
                   </button>

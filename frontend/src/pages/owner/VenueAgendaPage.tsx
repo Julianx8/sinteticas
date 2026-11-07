@@ -3,13 +3,14 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { apiFetch, query, queryClient } from '../../api/client'
 import type { Court, PageResponse, Reservation, ReservationStatus, Venue } from '../../api/types'
-import { DateRange, ErrorBox, PageHeading, QueryState, ReservationStatusTag } from '../../components/ui'
+import { DateRange, ErrorBox, PageHeading, QueryState, ReservationStatusTag, useConfirm } from '../../components/ui'
 import { STATUS_LABELS, addDays, formatDate, formatPrice, formatTime, todayIso } from '../../lib/format'
 
 const PAGE_SIZE = 50
 
 export function VenueAgendaPage() {
   const { venueId = '' } = useParams()
+  const confirm = useConfirm()
   const today = todayIso()
   const [range, setRange] = useState({ from: today, to: addDays(today, 7) })
   const [status, setStatus] = useState<ReservationStatus | ''>('')
@@ -108,8 +109,15 @@ export function VenueAgendaPage() {
                         type="button"
                         className="secondary small-button"
                         disabled={pending}
-                        onClick={() => window.confirm(`¿Cancelar la reserva de ${reservation.customer.fullName}? Le llegará un correo.`)
-                          && outcomeMutation.mutate({ id: reservation.id, action: 'cancel' })}
+                        onClick={async () => {
+                          const ok = await confirm({
+                            title: `¿Cancelar la reserva de ${reservation.customer.fullName}?`,
+                            message: `${formatTime(reservation.startAt)} – ${formatTime(reservation.endAt)} · ${reservation.court.name}. Le llegará un correo avisándole.`,
+                            confirmLabel: 'Cancelar reserva',
+                            danger: true,
+                          })
+                          if (ok) outcomeMutation.mutate({ id: reservation.id, action: 'cancel' })
+                        }}
                       >
                         Cancelar
                       </button>

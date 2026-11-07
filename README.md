@@ -156,10 +156,16 @@ frontend/src
 ├── api/client.ts     # apiFetch: token, renovación automática con refresh token, errores
 ├── api/types.ts      # tipos de la API (deben coincidir con los DTO del backend)
 ├── auth/             # sesión (useAuth) y protección de rutas por rol (RequireAuth)
-├── components/       # layout, estados de carga/error, gráficas de reportes
+├── components/       # layout (navegación inferior en celular), estados, diálogos, íconos, gráficas
 ├── lib/format.ts     # precios, fechas y horas en hora de Colombia
-└── pages/            # una página por ruta; owner/ = dueño de sede, admin/ = super admin
+├── lib/errors.ts     # código de error del backend → mensaje y acción para la persona
+├── lib/share.ts      # calendario (.ics), WhatsApp, Google Maps y dividir la cuenta
+├── pages/            # una página por ruta; owner/ = dueño de sede, admin/ = super admin
+├── styles.css        # estilos base
+└── mobile.css        # estilos mobile-first (Fase A de docs/requisitos/roadmap-frontend.md)
 ```
+
+Es una **PWA**: en el celular se puede instalar en la pantalla de inicio y abre sin internet (solo en el build de producción; en `npm run dev` no hay service worker). Sin conexión se ven las últimas reservas guardadas; reservar siempre necesita internet.
 
 | Ruta | Quién | Qué hace |
 |---|---|---|
@@ -174,6 +180,8 @@ Reglas para no romper la conexión con el backend:
 - **Toda llamada pasa por `apiFetch`.** Si el token de acceso (15 min) venció, lo renueva una sola vez con el refresh token y repite la petición; si no puede, cierra la sesión.
 - **Fechas con zona:** se envían en ISO-8601 con `-05:00`. Un `<input type="datetime-local">` no trae zona: usar `withBogotaOffset`.
 - **Si cambia un DTO del backend**, actualizar su tipo en `api/types.ts` (y la lista de `pages/BackendRoutesPage.tsx` si cambia un endpoint).
+- **Si el backend agrega un código de error**, darle mensaje (y acción si aplica) en `lib/errors.ts`.
+- **Si cambian las reglas de reserva** (`app.reservations` en `application.yml`), actualizar las constantes de `VenueDetailPage.tsx` y `ReservationDetailPage.tsx`.
 
 ---
 
