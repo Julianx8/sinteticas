@@ -16,6 +16,7 @@ import { downloadIcs, mapsUrl, whatsappUrl } from '../lib/share'
 const MAX_HOURS = 3
 const MAX_DAYS_AHEAD = 30
 const CANCELLATION_NOTICE_HOURS = 2
+const REMINDER_HOURS = 3 // app.reservations.reminder-before
 
 const SLOT_LABELS: Record<AvailabilitySlot['status'], string> = {
   AVAILABLE: 'Libre',
@@ -351,7 +352,7 @@ function ReviewSheet({ open, onClose, venue, court, date, chosen, onBooked, onSu
           <CheckCircleIcon size={56} />
           <p><strong>{formatLongDate(date)}</strong>, {formatTime(reservation.startAt)} a {formatTime(reservation.endAt)}</p>
           <p className="muted">{venue.name} · {court.name} · {formatPrice(reservation.totalPrice)} · pago en la sede</p>
-          <p className="muted">Te enviamos el detalle por correo.</p>
+          <p className="muted">Te enviamos el detalle por correo y te recordaremos el partido {REMINDER_HOURS} horas antes.</p>
         </div>
         <div className="share-grid">
           <button type="button" className="secondary" onClick={() => downloadIcs({

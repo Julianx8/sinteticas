@@ -41,6 +41,17 @@ public interface ReservationRepository extends JpaRepository<Reservation, UUID> 
             """)
     Optional<Reservation> findDetailedById(@Param("id") UUID id);
 
+    /** Confirmadas sin recordatorio que empiezan en (now, until]. Usa el índice parcial de V8. */
+    @Query("""
+            select r from Reservation r
+            join fetch r.court c join fetch c.venue join fetch r.customer
+            where r.status = com.sinteticas.api.reservation.ReservationStatus.CONFIRMED
+              and r.reminderSentAt is null
+              and r.startAt > :now and r.startAt <= :until
+            order by r.startAt
+            """)
+    List<Reservation> findDueForReminder(@Param("now") Instant now, @Param("until") Instant until);
+
     @Query(value = """
             select r from Reservation r
             join fetch r.court c join fetch c.venue

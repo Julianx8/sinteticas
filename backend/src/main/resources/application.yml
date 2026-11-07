@@ -112,6 +112,12 @@ app:
     customer-cancellation-notice: 2h
     # Reservas futuras activas que puede tener un cliente a la vez (evita acaparar horarios)
     max-active-per-customer: 5
+    # Recordatorio por correo antes del partido (no se envía si se reservó cuando ya faltaba menos)
+    reminder-before: 3h
+    # Cada cuánto se buscan reservas a las que les toca recordatorio (formato ISO-8601: PT5M = 5 minutos)
+    reminder-check-interval: PT5M
+    # false = no se ejecuta la tarea automática (los tests la llaman directamente)
+    reminders-scheduled: true
   bootstrap:
     # Si se definen, al arrancar se crea (o promueve) este usuario como SUPER_ADMIN
     super-admin:

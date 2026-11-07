@@ -1,6 +1,8 @@
 package com.sinteticas.api.notification;
 
 import java.math.BigDecimal;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
@@ -21,6 +23,17 @@ public final class EmailFormat {
     /** "martes 21 de octubre de 2026, de 19:00 a 21:00" (las horas ya vienen en hora de Colombia). */
     public static String slot(OffsetDateTime start, OffsetDateTime end) {
         return DATE.format(start) + ", de " + TIME.format(start) + " a " + TIME.format(end);
+    }
+
+    /** "19:00" */
+    public static String time(OffsetDateTime at) {
+        return TIME.format(at);
+    }
+
+    /** Enlace de Google Maps a la dirección (en Girardot). */
+    public static String mapsUrl(String address) {
+        return "https://www.google.com/maps/search/?api=1&query="
+                + URLEncoder.encode(address + ", Girardot, Cundinamarca", StandardCharsets.UTF_8);
     }
 
     public static String money(BigDecimal amount) {

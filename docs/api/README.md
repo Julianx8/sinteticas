@@ -145,6 +145,7 @@ Estados de una reserva: `CONFIRMED` → `CANCELLED` | `COMPLETED` | `NO_SHOW`.
 - Un cliente puede tener máximo **5 reservas futuras activas**.
 - El cliente cancela hasta **2 horas** antes; la sede puede cancelar en cualquier momento antes del inicio.
 - El precio se calcula sumando el precio de cada hora y **queda fijo** aunque la sede cambie el horario después.
+- **Recordatorio por correo 3 horas antes** (`reminder-before`). Una tarea lo revisa cada 5 minutos (`reminder-check-interval`); cada reserva recibe uno solo (columna `reminder_sent_at`, V8). Si se reservó cuando ya faltaban menos de 3 horas, no se envía: la confirmación hace de recordatorio.
 
 ### Reportes
 
@@ -183,6 +184,7 @@ El backend envía correos de texto en segundo plano (si el correo falla, la oper
 | Se crea una reserva | Confirmación al cliente y aviso a la sede |
 | El cliente cancela | Aviso a la sede |
 | La sede cancela | Aviso al cliente, con el motivo |
+| Faltan 3 horas para el partido | Recordatorio al cliente, con enlace a Google Maps |
 | Se pide restablecer la contraseña | Enlace al cliente: `APP_FRONTEND_URL/restablecer-contrasena?token=…` (1 hora, un solo uso) |
 
 El frontend debe tener la página `/restablecer-contrasena`, que lee el `token` de la URL y llama a `/auth/password/reset`.

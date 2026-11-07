@@ -96,6 +96,11 @@ public class ReservationService {
         User customer = userService.getById(user.id());
         Reservation reservation = new Reservation(court, customer, startAt, endAt, totalPrice,
                 blankToNull(request.notes()));
+        // Reservada a última hora (ya dentro de la ventana del recordatorio): el correo de confirmación
+        // que sale ahora hace de recordatorio, así que no se envía otro minutos después
+        if (!startAt.isAfter(time.now().plus(properties.reminderBefore()))) {
+            reservation.markReminderSent(time.now());
+        }
         try {
             reservationRepository.saveAndFlush(reservation);
         } catch (DataIntegrityViolationException ex) {
