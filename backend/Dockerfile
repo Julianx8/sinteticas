@@ -19,8 +19,14 @@ FROM eclipse-temurin:21-jre
 
 WORKDIR /app
 
-COPY --from=build /app/target/sinteticas-api.jar app.jar
+# La aplicación no corre como root dentro del contenedor
+RUN groupadd --system app && useradd --system --gid app --no-create-home app
+
+COPY --from=build --chown=app:app /app/target/sinteticas-api.jar app.jar
+
+USER app
 
 EXPOSE 8080
 
-CMD ["java", "-jar", "app.jar"]
+# La memoria de Java se ajusta al límite del contenedor (sirve igual en un portátil que en un servidor pequeño)
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75", "-XX:+ExitOnOutOfMemoryError", "-jar", "app.jar"]

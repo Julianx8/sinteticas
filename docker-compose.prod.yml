@@ -1,0 +1,91 @@
+# Producción: un servidor con Docker (ver docs/despliegue.md).
+#   cp .env.prod.example .env.prod   # y completar los valores
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Diferencias con docker-compose.yml (desarrollo):
+# - El frontend se compila y lo sirve Caddy, que además pone HTTPS y reenvía /api al backend.
+# - Solo Caddy publica puertos (80 y 443). La base de datos y el backend no son accesibles desde internet.
+# - Correo real (SMTP) en vez de Mailpit. Perfil "prod" del backend (sin Swagger, IP real detrás del proxy).
+
+name: sinteticas-prod
+
+x-logging: &logging
+  # Los logs no crecen sin límite y llenan el disco
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?Define POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:?Define POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    logging: *logging
+
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB}
+      SPRING_DATASOURCE_USERNAME: ${POSTGRES_USER}
+      SPRING_DATASOURCE_PASSWORD: ${POSTGRES_PASSWORD}
+      # Mismo dominio que el frontend
+      APP_CORS_ALLOWED_ORIGINS: ${PUBLIC_URL:?Define PUBLIC_URL (p. ej. https://sinteticas.ejemplo.com)}
+      APP_FRONTEND_URL: ${PUBLIC_URL}
+      JWT_SECRET: ${JWT_SECRET:?Define JWT_SECRET (mínimo 32 caracteres)}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-15m}
+      JWT_REFRESH_EXPIRATION: ${JWT_REFRESH_EXPIRATION:-14d}
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
+      MAIL_ENABLED: ${MAIL_ENABLED:-true}
+      MAIL_HOST: ${MAIL_HOST:?Define MAIL_HOST (servidor SMTP)}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_SMTP_STARTTLS: ${MAIL_SMTP_STARTTLS:-true}
+      MAIL_FROM: ${MAIL_FROM:?Define MAIL_FROM (p. ej. Sintéticas <no-reply@ejemplo.com>)}
+      PASSWORD_RESET_MAX_PER_IP: ${PASSWORD_RESET_MAX_PER_IP:-10}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    logging: *logging
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.prod
+    restart: unless-stopped
+    environment:
+      # Un dominio (sinteticas.ejemplo.com) = HTTPS automático. ":80" = solo HTTP (pruebas)
+      SITE_ADDRESS: ${SITE_ADDRESS:?Define SITE_ADDRESS (tu dominio, o :80 para probar)}
+      ACME_EMAIL: ${ACME_EMAIL:?Define ACME_EMAIL (avisos del certificado HTTPS)}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Certificados HTTPS: se conservan entre reinicios (Let's Encrypt limita cuántos se piden)
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+    logging: *logging
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

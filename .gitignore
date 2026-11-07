@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!.env.prod.example
 
 # Backend (Maven / Java)
 backend/target/
@@ -21,3 +22,6 @@ frontend/dist/
 !.vscode/extensions.json
 .DS_Store
 Thumbs.db
+
+# Copias de seguridad de producción (deploy/backup.sh)
+backups/

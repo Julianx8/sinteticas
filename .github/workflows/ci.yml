@@ -108,3 +108,72 @@ jobs:
             e2e/playwright-report
             e2e/test-results
             compose-logs.txt
+
+  produccion:
+    name: Producción (build + verificación)
+    runs-on: ubuntu-24.04
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v5
+
+      # Igual que en un servidor, pero por HTTP (:80) y sin correo real. Claves aleatorias en cada ejecución.
+      - name: Crear .env.prod de prueba
+        run: |
+          {
+            echo "SITE_ADDRESS=:80"
+            echo "PUBLIC_URL=http://localhost"
+            echo "ACME_EMAIL=ci@example.com"
+            echo "POSTGRES_DB=sinteticas_db"
+            echo "POSTGRES_USER=sinteticas"
+            echo "POSTGRES_PASSWORD=$(openssl rand -hex 16)"
+            echo "JWT_SECRET=$(openssl rand -hex 32)"
+            echo "SUPER_ADMIN_EMAIL=admin@ci.local"
+            echo "SUPER_ADMIN_PASSWORD=$(openssl rand -hex 12)Aa1"
+            echo "MAIL_ENABLED=false"
+            echo "MAIL_HOST=localhost"
+            echo "MAIL_FROM=no-reply@ci.local"
+          } > .env.prod
+
+      - name: Levantar con docker-compose.prod.yml
+        run: |
+          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+          for i in $(seq 1 60); do
+            curl -sf http://localhost/api/v1/health > /dev/null && exit 0
+            sleep 3
+          done
+          echo "Producción no respondió a tiempo" && docker compose -f docker-compose.prod.yml --env-file .env.prod logs && exit 1
+
+      - name: Verificación de producción (deploy/smoke-test.sh)
+        run: ./deploy/smoke-test.sh http://localhost
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: e2e/package-lock.json
+
+      # Las mismas pruebas de navegador, contra el build de producción (sin la de correo: aquí no hay Mailpit)
+      - name: Pruebas e2e contra producción
+        working-directory: e2e
+        env:
+          FRONTEND_URL: http://localhost
+          API_URL: http://localhost
+        run: |
+          npm ci
+          npx playwright install --with-deps chromium
+          export $(grep -E '^SUPER_ADMIN_(EMAIL|PASSWORD)=' ../.env.prod | xargs)
+          npx playwright test --grep-invert "olvidar la contraseña"
+
+      - name: Logs si falla
+        if: failure()
+        run: docker compose -f docker-compose.prod.yml --env-file .env.prod logs --no-color > prod-logs.txt
+
+      - name: Publicar reporte si falla
+        if: failure()
+        uses: actions/upload-artifact@v5
+        with:
+          name: produccion-reporte
+          path: |
+            e2e/playwright-report
+            e2e/test-results
+            prod-logs.txt

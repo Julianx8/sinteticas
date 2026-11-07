@@ -70,6 +70,8 @@ Verifica que respondan:
 - Correos de desarrollo (Mailpit) → http://localhost:8025
 - PostgreSQL → puerto 5432 (no se abre en navegador, es normal)
 
+Para publicar el sistema en internet (dominio, HTTPS, copias de seguridad) ver **[docs/despliegue.md](docs/despliegue.md)**.
+
 Si algo falla en este paso, avisa en el grupo antes de seguir — mejor resolverlo entre los tres que cada uno con una versión distinta funcionando.
 
 ### Correr los tests del backend
@@ -93,9 +95,12 @@ Prueban los flujos haciendo clic en la aplicación real (reservar, cancelar, rec
 ```
 sinteticas/
 │
-├── docker-compose.yml     # orquesta los contenedores (postgres, backend, mailpit, frontend)
-├── .env.example           # plantilla de variables (SÍ se sube a Git)
-├── .env                   # valores reales (NUNCA se sube)
+├── docker-compose.yml     # desarrollo: postgres, backend, mailpit, frontend
+├── docker-compose.prod.yml# producción: postgres, backend y Caddy (HTTPS) — ver docs/despliegue.md
+├── .env.example           # plantilla de variables de desarrollo (SÍ se sube a Git)
+├── .env.prod.example      # plantilla de variables de producción (SÍ se sube a Git)
+├── .env / .env.prod       # valores reales (NUNCA se suben)
+├── deploy/                # copias de seguridad y verificación de producción
 │
 ├── backend/                # Spring Boot
 │   ├── pom.xml              # dependencias Java
